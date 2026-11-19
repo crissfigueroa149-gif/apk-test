@@ -5,6 +5,9 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -37,3 +40,11 @@ jobs:
         with:
           name: entrenabilidad-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Publicar APK como descarga directa
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp android/app/build/outputs/apk/debug/app-debug.apk entrenabilidad.apk
+          gh release delete latest --yes --cleanup-tag || true
+          gh release create latest entrenabilidad.apk --title "Entrenabilidad (APK)" --notes "APK de prueba. Descarga entrenabilidad.apk e instálalo en tu Android." --latest
