@@ -914,7 +914,7 @@ async function cloudAuth(kind){
     fbSession(j); cloudSave(); toast(kind==='up'?'Cuenta creada':'Sesión iniciada'); render(); syncNow(true);
   }catch(e){ toast(cloudErr(e)); }
 }
-const FB_RULES="rules_version = '2';\nservice cloud.firestore {\n  match /databases/{db}/documents {\n    match /users/{uid}/{document=**} {\n      allow read, write: if request.auth != null && request.auth.uid == uid;\n    }\n    match /students/{sid} {\n      allow get: if request.auth != null && (request.auth.uid == sid || resource.data.trainerUid == request.auth.uid);\n      allow list: if request.auth != null && resource.data.trainerUid == request.auth.uid;\n      allow create: if request.auth != null && request.resource.data.trainerUid == request.auth.uid;\n      allow update: if request.auth != null && request.resource.data.trainerUid == resource.data.trainerUid && (request.auth.uid == sid || resource.data.trainerUid == request.auth.uid);\n      allow delete: if request.auth != null && resource.data.trainerUid == request.auth.uid;\n      match /data/{d} {\n        allow read: if request.auth != null && (request.auth.uid == sid\n          || get(/databases/$(db)/documents/students/$(sid)).data.trainerUid == request.auth.uid);\n        allow write: if request.auth != null && ((d == 'alumno' && request.auth.uid == sid)\n          || (d != 'alumno' && get(/databases/$(db)/documents/students/$(sid)).data.trainerUid == request.auth.uid));\n      }\n    }\n  }\n}";
+const FB_RULES="rules_version = '2';\nservice cloud.firestore {\n  match /databases/{db}/documents {\n    function isAdmin() {\n      return request.auth != null\n        && exists(/databases/$(db)/documents/config/admin)\n        && get(/databases/$(db)/documents/config/admin).data.uid == request.auth.uid;\n    }\n    match /config/admin {\n      allow read: if request.auth != null;\n      allow create: if request.auth != null && request.resource.data.uid == request.auth.uid;\n      allow update, delete: if false;\n    }\n    match /users/{uid}/{document=**} {\n      allow read, write: if request.auth != null && request.auth.uid == uid;\n    }\n    match /students/{sid} {\n      allow get: if request.auth != null && (request.auth.uid == sid || resource.data.trainerUid == request.auth.uid);\n      allow list: if isAdmin() && resource.data.trainerUid == request.auth.uid;\n      allow create: if isAdmin() && request.resource.data.trainerUid == request.auth.uid;\n      allow update: if request.auth != null && request.resource.data.trainerUid == resource.data.trainerUid && (request.auth.uid == sid || isAdmin());\n      allow delete: if isAdmin() && resource.data.trainerUid == request.auth.uid;\n      match /data/{d} {\n        allow read: if request.auth != null && (request.auth.uid == sid\n          || get(/databases/$(db)/documents/students/$(sid)).data.trainerUid == request.auth.uid);\n        allow write: if request.auth != null && ((d == 'alumno' && request.auth.uid == sid)\n          || (d != 'alumno' && isAdmin() && get(/databases/$(db)/documents/students/$(sid)).data.trainerUid == request.auth.uid));\n      }\n    }\n  }\n}";
 function cloudCard(){
   if(dbh) return '';
   const u=CL.user, st=CL.status||{}; const pend=Object.keys(CL.dirty||{}).length;
@@ -928,9 +928,9 @@ function cloudCard(){
 function cloudAction(a,el){
   if(a==='fbcfg'){ const k=(document.getElementById('fbkey')||{}).value||'', p=(document.getElementById('fbproj')||{}).value||''; if(!k.trim()||!p.trim()) return toast('Pega la clave de API y el ID del proyecto'); CL.cfg={apiKey:k.trim(),projectId:p.trim()}; cloudSave(); render(); return toast('Datos guardados: ahora entra con tu correo'); }
   if(a==='fbcfgclr'){ delete CL.cfg; delete CL.user; cloudSave(); render(); return; }
-  if(a==='fbin') return cloudAuth('in'); if(a==='fbup') return cloudAuth('up'); if(a==='fbreset') return cloudAuth('reset');
+  if(a==='fbin') return cloudAuth('in'); if(a==='fbup') return toast('La cuenta de administrador se crea al entrar como Profesor'); if(a==='fbreset') return cloudAuth('reset');
   if(a==='fbsync') return syncNow(true);
-  if(a==='fbout'){ delete CL.user; CL.status=null; cloudSave(); render(); return toast('Sesión cerrada (los datos siguen en el teléfono)'); }
+  if(a==='fbout'){ delete CL.user; delete CL.admin; CL.status=null; cloudSave(); render(); return toast('Sesión cerrada (los datos siguen en el teléfono)'); }
   if(a==='fbrules'){ try{ navigator.clipboard.writeText(FB_RULES).then(()=>toast('Reglas copiadas'),()=>fallbackCopy(FB_RULES)); }catch(e){ fallbackCopy(FB_RULES); } }
 }
 document.addEventListener('visibilitychange',()=>{ if(!document.hidden) syncNow(false); });
@@ -1062,6 +1062,33 @@ if(typeof CL!=='undefined'&&!(CL.cfg&&CL.cfg.apiKey)&&FB_DEFAULT.apiKey) CL.cfg=
 const codeCreds=c=>{ c=String(c||'').toLowerCase().replace(/[^a-z0-9]/g,''); return {email:c+'@alumnos.energy',pass:'ea'+c+'x'}; };
 const userEmail=u=>{ u=String(u||'').trim(); if(u.includes('@')) return u.toLowerCase(); return u.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9._-]/g,'')+'@alumnos.energy'; };
 let ROLE=''; try{ ROLE=localStorage.getItem('entrenabilidad_role')||''; }catch(e){}
+/* ---------- Administrador único ---------- */
+const adminOk=()=>!!(dbh||(CL.user&&CL.admin&&CL.admin===CL.user.uid));
+async function adminClaim(){
+  const f=await dGet(CL,cloudSave,'config/admin');
+  if(!f){ await dCommit(CL,cloudSave,[dW(CL,'config/admin',{uid:fS(CL.user.uid),email:fS(CL.user.email||'')})]); CL.admin=CL.user.uid; cloudSave(); return 'ok'; }
+  if(gS(f.uid)===CL.user.uid){ CL.admin=CL.user.uid; cloudSave(); return 'ok'; } return 'other';
+}
+function renderAdmin(msg){
+  const app=$('#app'); $('#overlay').innerHTML=''; $('#overlay').classList.remove('on'); document.body.classList.remove('lock');
+  app.innerHTML=`<div class="rolebox"><div class="rolehd"><div class="rolelogo">Profesor</div><h1>Acceso de administrador</h1><div class="sub">Solo el administrador puede autorizar un teléfono como Profesor</div></div>
+  <div class="card"><label>Correo del administrador</label><input id="ad_em" type="email" autocomplete="email" autocapitalize="none" value="${esc(AU.em||(CL.user&&CL.user.email)||'')}"><label style="margin-top:6px">Clave</label><input id="ad_pw" type="password" autocomplete="current-password">
+  <button class="btn pri" style="margin-top:10px" data-x="adin" ${AU.busy?'disabled':''}>Entrar</button>
+  <details style="margin-top:10px"><summary class="xs" style="cursor:pointer;color:var(--acc)">Primera vez: crear la cuenta de administrador</summary><div class="xs mut" style="margin:6px 0">Solo funciona si todavía no existe un administrador. Quedará como la única cuenta con permiso de Profesor.</div><button class="btn" data-x="adup" ${AU.busy?'disabled':''}>Crear cuenta de administrador</button></details>
+  ${msg?`<div class="xs" style="color:#ff5f7e;margin-top:8px">${esc(msg)}</div>`:''}${AU.busy?'<div class="xs" style="margin-top:6px">Conectando…</div>':''}</div><button class="btn ghost" data-x="role" data-v="">← Volver al inicio</button></div>`;
+}
+async function adminAuth(kind){
+  const g=x=>{ const e=document.getElementById(x); return e?e.value.trim():''; }; const em=g('ad_em'), pw=(document.getElementById('ad_pw')||{}).value||'';
+  if(!em||!pw) return renderAdmin('Escribe el correo y la clave'); if(!fbOn()) return renderAdmin('La app no tiene configurado Firebase');
+  AU.em=em; AU.busy=true; renderAdmin(); const bak=JSON.stringify([CL.user,CL.admin]);
+  try{
+    const j=await aAuth(CL,kind==='up'?'signUp':'signInWithPassword',{email:em,password:pw,returnSecureToken:true});
+    if(CL.user&&CL.user.uid&&CL.user.uid!==j.localId){ CL.sig={};CL.ut={};CL.tomb={};CL.dirty={};CL.lastPull=0; }
+    aSess(CL,cloudSave,j); const r=await adminClaim();
+    if(r==='other'){ if(kind==='up'){ try{ await aAuth(CL,'delete',{idToken:j.idToken}); }catch(e){} } delete CL.user; delete CL.admin; cloudSave(); AU.busy=false; return renderAdmin('Ya existe un administrador y esta cuenta no lo es. Pídele al administrador que te autorice.'); }
+    AU.busy=false; render(true); toast('Administrador verificado'); syncNow(true);
+  }catch(e){ AU.busy=false; const m=String(e.message||''); if(kind==='up'&&/EMAIL_EXISTS/.test(m)) renderAdmin('Ese correo ya tiene cuenta: toca «Entrar».'); else if(/PERMISSION_DENIED|403/.test(m)){ delete CL.user; delete CL.admin; cloudSave(); renderAdmin('Sin permiso: revisa que las reglas de Firestore estén publicadas.'); } else renderAdmin(cloudErr(e)); }
+}
 /* ---------- Clave del modo Profesor ---------- */
 const PINKEY='entrenabilidad_pin'; let PIN_OK=false;
 const pinGet=()=>{ try{ return JSON.parse(localStorage.getItem(PINKEY)||'null'); }catch(e){ return null; } };
@@ -1431,6 +1458,7 @@ document.addEventListener('click',e=>{
   const el=e.target.closest('[data-x]'); if(!el||el.tagName==='INPUT'&&el.type==='checkbox') return; const a=el.dataset.x, v=el.dataset.v;
   if(a==='role'){ setRole(v); return; }
   if(/^pin/.test(a)) return pinAct(a);
+  if(a==='adin') return adminAuth('in'); if(a==='adup') return adminAuth('up');
   if(['aauth','acap','apt','atsel','atab','async','amood','acm','acd','anote','anotedel','arut','aout'].includes(a)) return aluAct(a,v);
   xAct(a,el);
 });
@@ -1929,6 +1957,7 @@ function renderModal(){
 function render(force){
   if(ROLE==='alumno'){ aluRender(); return; }
   if(ROLE!=='profe'){ renderRole(); return; }
+  if(!adminOk()){ renderAdmin(); return; }
   if(!PIN_OK){ renderPin(); return; }
   if(ui.modal && !force) return;
   const app=$('#app'); const ov=$('#overlay');
