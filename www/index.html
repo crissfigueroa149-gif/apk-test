@@ -46,6 +46,7 @@ h1{font-size:24px;background:var(--grad);-webkit-background-clip:text;background
 .obj{display:flex;gap:10px;align-items:center;padding:10px 0;border-top:1px solid var(--line);font-size:15px}.obj input{width:22px;height:22px;flex:none}.obj.on span{text-decoration:line-through;opacity:.6}
 .moods{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-top:8px}.mood{background:var(--card-s);border:1px solid var(--line);border-radius:12px;padding:8px 0;color:var(--ink);font:inherit;cursor:pointer;display:flex;flex-direction:column;align-items:center}.mood span{font-size:26px}.mood small{font-size:10px;color:var(--mut)}.mood.on{background:rgba(46,230,197,.2);border-color:#2ee6c5}
 .rutb{display:block;width:100%;text-align:left;color:var(--ink);font:inherit;cursor:pointer}
+.modebtn{position:fixed;right:10px;bottom:calc(72px + env(safe-area-inset-bottom));z-index:6;background:rgba(14,8,30,.85);color:var(--ink);border:1px solid var(--line);border-radius:999px;padding:7px 12px;font:inherit;font-size:12px;cursor:pointer;opacity:.85}
 .nav{position:fixed;left:0;right:0;bottom:0;background:rgba(14,8,30,.96);border-top:1px solid var(--line);display:flex;justify-content:center;z-index:5;padding-bottom:env(safe-area-inset-bottom)}
 .nav button{flex:1;max-width:180px;background:none;border:0;padding:10px 4px 9px;color:var(--mut);font:inherit;font-size:12px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px}
 .nav button svg{width:22px;height:22px}
@@ -1291,7 +1292,7 @@ function aluRender(){
   if(AU.tab==='comida') h+=`<div class="card"><h3>Recomendaciones alimenticias</h3><div class="sm" style="white-space:pre-wrap;margin-top:8px">${esc(P.nutri||'Tu profesor aún no dejó recomendaciones.')}</div></div>`;
   if(AU.tab==='perfil'){ const p=AL.perfil||{}; const F=(k,l,t)=>`<div><label>${l}</label><input data-xc="aperfil" data-k="${k}" type="${t||'text'}" value="${esc(p[k]!=null?p[k]:(k==='nombre'?ST.nombre||'':''))}"></div>`;
     h+=`<div class="card"><h3>Mis datos personales</h3><div class="f">${F('nombre','Nombre')}${F('edad','Edad','number')}${F('peso','Peso (kg)','number')}${F('estatura','Estatura (cm)','number')}${F('tel','Teléfono','tel')}</div><div class="xs mut" style="margin-top:6px">Tu profesor ve estos datos. Se guardan al salir del campo.</div></div><div class="card"><div class="sm">Cuenta: <b>${esc(ST.user.email||'')}</b></div><button class="btn bad" style="margin-top:8px" data-x="aout">Cerrar sesión</button></div>`; }
-  app.innerHTML=h+`<nav class="nav">${tabs.map(t=>`<button class="${AU.tab===t[0]?'on':''}" data-x="atab" data-v="${t[0]}">${t[2]}<span>${t[1]}</span></button>`).join('')}</nav>`;
+  app.innerHTML=h+`<nav class="nav">${tabs.map(t=>`<button class="${AU.tab===t[0]?'on':''}" data-x="atab" data-v="${t[0]}">${t[2]}<span>${t[1]}</span></button>`).join('')}</nav><button class="modebtn" data-x="role" data-v="">⇄ Modo</button>`;
 }
 function aluAct(a,v){
   const g=x=>{ const e=document.getElementById(x); return e?e.value:''; };
@@ -1817,7 +1818,7 @@ function render(force){
   if(mode==='local'){ const nCl=Object.keys(S.clientes).length; const ag=backupAge(); banner=nCl&&ag>=7?`<div class="banner ptr" data-a="tab" data-v="ajustes">${metaGet().lastBackup?'Hace '+ag+' días que no guardas un respaldo.':'Aún no has guardado un respaldo de tus datos.'} Toca para respaldar.</div>`:''; }
   if(ui.slow) banner+=`<div class="banner">No se pudo conectar con la base de datos todavía. Lo que ves puede estar desactualizado.</div>`;
   const keepScroll=window.scrollY; const oldHero=app.querySelector('.hero'); const vk=ui.tab+'|'+(ui.cid||'')+'|'+(ui.cid?ui.sub:'');
-  app.innerHTML=banner+v+`<nav class="nav">${tabs.map(t=>`<button class="${ui.tab===t[0]?'on':''}" data-a="tab" data-v="${t[0]}">${ICON[t[0]==='ajustes'?'ajustes':t[0]]}<span>${t[1]}</span></button>`).join('')}</nav>`;
+  app.innerHTML=banner+v+`<nav class="nav">${tabs.map(t=>`<button class="${ui.tab===t[0]?'on':''}" data-a="tab" data-v="${t[0]}">${ICON[t[0]==='ajustes'?'ajustes':t[0]]}<span>${t[1]}</span></button>`).join('')}</nav><button class="modebtn" data-x="role" data-v="">⇄ Modo</button>`;
   const nh=app.querySelector('.hero'); if(oldHero&&nh) nh.replaceWith(oldHero);
   if(vk!==render._vk){ render._vk=vk; app.classList.remove('enter'); void app.offsetWidth; app.classList.add('enter'); clearTimeout(render._t); render._t=setTimeout(()=>app.classList.remove('enter'),520); }
   if(ui.modal){ ov.innerHTML=renderModal(); ov.classList.add('on'); document.body.classList.add('lock'); derive(); }
