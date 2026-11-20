@@ -1089,7 +1089,7 @@ document.addEventListener('keydown',e=>{ if(e.key==='Enter'&&e.target&&e.target.
 function setRole(r){ if(r!=='profe') PIN_OK=false; ui.pinForgot=false; ROLE=r; try{ if(r) localStorage.setItem('entrenabilidad_role',r); else localStorage.removeItem('entrenabilidad_role'); }catch(e){} ui.modal=null; ui.d=null; render(true); window.scrollTo(0,0); if(r==='alumno') aluStart(); }
 function renderRole(){
   const app=$('#app'); $('#overlay').innerHTML=''; $('#overlay').classList.remove('on'); document.body.classList.remove('lock');
-  app.innerHTML=`<div class="rolebox"><div class="rolehd"><div class="rolelogo">Energy Alameda</div><h1>Entrenabilidad</h1><div class="sub">¿Cómo quieres entrar?</div></div>
+  app.innerHTML=`<div class="rolebox"><div class="rolehd"><h1>Entrenabilidad</h1><div class="sub">¿Cómo quieres entrar?</div></div>
   <button class="rolebtn r1" data-x="role" data-v="profe"><b>Profesor</b><span>Planifica, evalúa y edita el entrenamiento de tus alumnos</span></button>
   <button class="rolebtn r2" data-x="role" data-v="alumno"><b>Alumnos</b><span>Tu rutina, calendario, recordatorios y notas</span></button></div>`;
 }
@@ -1210,7 +1210,10 @@ async function xPull(cid){
 }
 async function xPublish(cid){
   const c=S.clientes[cid]; const a=appOf(c); if(!a.sid) return toast('El alumno aún no se registra con el código');
-  const plan={nombre:c.nombre,objetivos:a.objetivos,rutinas:a.rutinas,nutri:a.nutri,dias:a.dias,tnotas:a.tnotas,recs:a.recs,u:Date.now()}; const G=gifsGet(); const up={...a.gifUp};
+  const tsx=ofC('tests',cid).sort((x,y)=>x.fecha.localeCompare(y.fecha)).map(t=>{ const T=testById(t.tipo), v=valorOf(t), r=t.res||{}; return {k:t.tipo,n:testName(t),cap:T?T.cap:'',f:t.fecha,v:(v==null||isNaN(v))?null:Math.round(v*100)/100,u:t.tipo==='fuerza'?'pts':t.tipo==='harvard'?'ml/kg/min':(r.unidad||''),cat:r.cat||'',s:catScore(r.cat)}; });
+  const meds=ofC('mediciones',cid).sort((x,y)=>x.fecha.localeCompare(y.fecha)).map(m=>({f:m.fecha,peso:m.peso,mm:m.masaMusc,mg:m.masaGrasa}));
+  const wk={}; ofC('sesiones',cid).forEach(s=>{ if(s.fecha) { const k=wkKey(parseD(s.fecha)); wk[k]=(wk[k]||0)+1; } });
+  const plan={nombre:c.nombre,objetivos:a.objetivos,rutinas:a.rutinas,nutri:a.nutri,dias:a.dias,tnotas:a.tnotas,recs:a.recs,prog:{tests:tsx,meds,wk},u:Date.now()}; const G=gifsGet(); const up={...a.gifUp};
   try{
     for(const r of a.recs){ if(r.gif&&!up[r.gif]&&G[r.gif]){ await dCommit(CL,cloudSave,[dW(CL,`students/${a.sid}/data/g_${r.gif}`,{j:fS(G[r.gif]),u:fI(Date.now())})]); up[r.gif]=1; } }
     await dCommit(CL,cloudSave,[dW(CL,`students/${a.sid}/data/plan`,{j:fS(JSON.stringify(plan)),u:fI(plan.u)})]);
@@ -1284,9 +1287,69 @@ async function aluNotif(){
   try{
     let pm=await LN.checkPermissions(); if(pm.display!=='granted'){ pm=await LN.requestPermissions(); if(pm.display!=='granted') return; }
     const pend=await LN.getPending(); if(pend&&pend.notifications&&pend.notifications.length) await LN.cancel({notifications:pend.notifications.map(n=>({id:n.id}))});
-    const list=[]; (ST.plan.recs||[]).forEach((r,i)=>{ const [hh,mm]=(r.h||'08:00').split(':').map(Number); (r.dias||[]).forEach(d=>list.push({id:2000+i*10+d,title:'Energy Alameda',body:r.msg||'Recordatorio de tu entrenador',schedule:{on:{weekday:(d%7)+1,hour:hh,minute:mm},allowWhileIdle:true}})); });
+    const list=[]; (ST.plan.recs||[]).forEach((r,i)=>{ const [hh,mm]=(r.h||'08:00').split(':').map(Number); (r.dias||[]).forEach(d=>list.push({id:2000+i*10+d,title:'Entrenabilidad',body:r.msg||'Recordatorio de tu entrenador',schedule:{on:{weekday:(d%7)+1,hour:hh,minute:mm},allowWhileIdle:true}})); });
     if(list.length) await LN.schedule({notifications:list});
   }catch(e){}
+}
+
+/* ---------- Gráficos interactivos del alumno ---------- */
+const CAPN={comp:'Composición',aer:'Aeróbica',cardio:'Cardiovascular',fuerza:'Fuerza',pot:'Potencia',flex:'Flexibilidad',equi:'Equilibrio',vel:'Velocidad'};
+function capData(P){
+  const T=((P.prog||{}).tests||[]).filter(t=>t.s!=null&&t.cap); const cap={};
+  T.forEach(t=>{ const c=cap[t.cap]=cap[t.cap]||{id:t.cap,by:{}}; const b=c.by[t.k]=c.by[t.k]||{n:t.n,first:t,last:t}; b.last=t; });
+  return Object.values(cap).map(c=>{ const bs=Object.values(c.by); const avg=f=>bs.reduce((s,b)=>s+b[f].s,0)/bs.length; return {id:c.id,n:CAPN[c.id]||c.id,first:avg('first'),last:avg('last'),tests:bs}; });
+}
+const scoreTxt=s=>s>=4.5?'Excelente':s>=3.5?'Buena':s>=2.5?'Regular':s>=1.5?'Baja':'Muy baja';
+function aRadar(D,sel){
+  const n=D.length, W=340,H=300,cx=170,cy=150,R=100; const Pt=(i,r)=>[cx+R*r*Math.sin(2*Math.PI*i/n),cy-R*r*Math.cos(2*Math.PI*i/n)];
+  let g=''; for(let r=1;r<=5;r++) g+=`<polygon fill="none" stroke="var(--line)" points="${D.map((_,i)=>Pt(i,r/5).map(v=>v.toFixed(1)).join(',')).join(' ')}"/>`;
+  const pl=(f,fill,st,dash)=>`<polygon points="${D.map((d,i)=>Pt(i,d[f]/5).map(v=>v.toFixed(1)).join(',')).join(' ')}" fill="${fill}" stroke="${st}" stroke-width="2.2" stroke-linejoin="round" ${dash?'stroke-dasharray="5 4"':''}/>`;
+  D.forEach((d,i)=>{ const a=Pt(i,1),b=Pt(i,1.22); g+=`<line x1="${cx}" y1="${cy}" x2="${a[0].toFixed(1)}" y2="${a[1].toFixed(1)}" stroke="var(--line)"/><text x="${b[0].toFixed(1)}" y="${(b[1]+4).toFixed(1)}" text-anchor="${Math.abs(b[0]-cx)<8?'middle':b[0]>cx?'start':'end'}" style="font-size:11px;${d.id===sel?'font-weight:800;fill:#ffd23f':''}">${esc(d.n)}</text>`; });
+  if(D.some(d=>Math.abs(d.first-d.last)>.01)) g+=pl('first','rgba(160,160,190,.15)','#a0a0be',true);
+  g+=pl('last','rgba(255,122,182,.30)','#ff8fc3',false);
+  D.forEach((d,i)=>{ const q=Pt(i,d.last/5); g+=`<circle cx="${q[0].toFixed(1)}" cy="${q[1].toFixed(1)}" r="${d.id===sel?7:4.5}" fill="#ffd23f" stroke="#1a0b2e" stroke-width="1.5"/><circle cx="${q[0].toFixed(1)}" cy="${q[1].toFixed(1)}" r="18" fill="transparent" data-x="acap" data-v="${d.id}" style="cursor:pointer"/>`; });
+  return `<svg class="ch" viewBox="0 0 ${W} ${H}" style="max-width:420px;margin:0 auto">${g}</svg>`;
+}
+function capInfo(D,sel){
+  const d=D.find(x=>x.id===sel); if(!d) return '<div class="xs mut" style="text-align:center">Toca un punto del gráfico para ver el detalle.</div>';
+  const dif=d.last-d.first;
+  return `<div class="note"><b>${esc(d.n)}</b>: ${d.last.toFixed(1).replace('.',',')} / 5 · ${scoreTxt(d.last)} ${Math.abs(dif)>.01?`<span class="chip ${dif>0?'ok':'warn'}">${dif>0?'▲':'▼'} ${Math.abs(dif).toFixed(1).replace('.',',')} desde el inicio</span>`:''}${d.tests.map(b=>`<div class="xs mut">${esc(b.n)}: ${esc(b.last.cat)} (${fdate(b.last.f)})</div>`).join('')}</div>`;
+}
+function aBars(D,sel){
+  const W=340,H=190,m={l:8,r:8,t:18,b:34}; const bw=(W-m.l-m.r)/D.length; const Y=s=>H-m.b-(H-m.t-m.b)*s/5; let g='';
+  for(let i=1;i<=5;i++) g+=`<line x1="${m.l}" x2="${W-m.r}" y1="${Y(i)}" y2="${Y(i)}" stroke="var(--line)" opacity=".5"/>`;
+  D.forEach((d,i)=>{ const x=m.l+i*bw; const w=bw*.32; const act=d.id===sel;
+    g+=`<rect x="${x+bw*.12}" y="${Y(d.first)}" width="${w}" height="${H-m.b-Y(d.first)}" rx="3" fill="#a0a0be" opacity=".55"/><rect x="${x+bw*.12+w+2}" y="${Y(d.last)}" width="${w}" height="${H-m.b-Y(d.last)}" rx="3" fill="${act?'#ffd23f':'#2ee6c5'}"/>
+    <text x="${x+bw*.12+w+2+w/2}" y="${Y(d.last)-4}" text-anchor="middle" style="font-size:10px">${d.last.toFixed(1).replace('.',',')}</text><text x="${x+bw/2}" y="${H-m.b+14}" text-anchor="middle" style="font-size:10px;${act?'font-weight:800':''}">${esc(d.n.slice(0,9))}</text><rect x="${x}" y="${m.t}" width="${bw}" height="${H-m.t}" fill="transparent" data-x="acap" data-v="${d.id}" style="cursor:pointer"/>`; });
+  return `<svg class="ch" viewBox="0 0 ${W} ${H}">${g}</svg><div class="leg"><span><i style="background:#a0a0be"></i>Primer test</span><span><i style="background:#2ee6c5"></i>Último test</span></div>`;
+}
+function ptOpts(P){
+  const pr=P.prog||{}; const by={}; (pr.tests||[]).forEach(t=>{ if(t.v==null) return; (by[t.k]=by[t.k]||{id:'t_'+t.k,n:t.n,u:t.u,pts:[]}).pts.push({f:t.f,v:t.v,c:t.cat}); });
+  const o=Object.values(by); const M=(id,n,k,u)=>{ const pts=(pr.meds||[]).filter(m=>m[k]!=null&&m[k]!=='').map(m=>({f:m.f,v:Number(m[k])})); if(pts.length) o.push({id,n,u,pts}); };
+  M('m_peso','Peso corporal','peso','kg'); M('m_mm','Masa muscular','mm','kg'); M('m_mg','Masa grasa','mg','kg'); return o;
+}
+function aPoints(o,sel){
+  const pts=o.pts; const W=340,H=190,m={l:40,r:14,t:14,b:26}; let y0=Math.min(...pts.map(p=>p.v)),y1=Math.max(...pts.map(p=>p.v)); if(y0===y1){y0-=1;y1+=1;} const pd=(y1-y0)*.2; y0-=pd; y1+=pd;
+  const X=i=>pts.length===1?(m.l+W-m.r)/2:m.l+(W-m.l-m.r)*i/(pts.length-1), Y=v=>H-m.b-(v-y0)/(y1-y0)*(H-m.t-m.b); let g='';
+  for(let i=0;i<4;i++){ const v=y0+(y1-y0)*i/3; g+=`<line x1="${m.l}" x2="${W-m.r}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--line)" opacity=".6"/><text x="${m.l-5}" y="${Y(v)+4}" text-anchor="end" style="font-size:10px">${fmt(v,Math.abs(v)>=100?0:1)}</text>`; }
+  if(pts.length>1) g+=`<polyline fill="none" stroke="#ff8fc3" stroke-width="2.4" stroke-linejoin="round" points="${pts.map((p,i)=>X(i).toFixed(1)+','+Y(p.v).toFixed(1)).join(' ')}"/>`;
+  pts.forEach((p,i)=>{ g+=`<circle cx="${X(i).toFixed(1)}" cy="${Y(p.v).toFixed(1)}" r="${i===sel?8:5}" fill="${i===sel?'#ffd23f':'#2ee6c5'}" stroke="#1a0b2e" stroke-width="1.5"/><circle cx="${X(i).toFixed(1)}" cy="${Y(p.v).toFixed(1)}" r="16" fill="transparent" data-x="apt" data-v="${i}" style="cursor:pointer"/>`; });
+  g+=`<text x="${m.l}" y="${H-6}" style="font-size:10px">${fdate(pts[0].f)}</text><text x="${W-m.r}" y="${H-6}" text-anchor="end" style="font-size:10px">${fdate(pts[pts.length-1].f)}</text>`;
+  const p=pts[sel!=null&&pts[sel]?sel:pts.length-1];
+  return `<svg class="ch" viewBox="0 0 ${W} ${H}">${g}</svg><div class="note"><b>${fmt(p.v,2)} ${esc(o.u||'')}</b> · ${fdate(p.f)}${p.c?' · '+esc(p.c):''}</div>`;
+}
+function aWeeks(P){
+  const wk=((P.prog||{}).wk)||{}; const items=[]; const now=new Date(); for(let i=7;i>=0;i--){ const d=new Date(now.getFullYear(),now.getMonth(),now.getDate()-7*i); const k=wkKey(d); items.push({k,v:wk[k]||0,l:fdate(k).slice(0,5)}); }
+  const mx=Math.max(3,...items.map(i=>i.v)); const W=340,H=150,m={l:8,r:8,t:18,b:24}; const bw=(W-m.l-m.r)/items.length; let g='';
+  items.forEach((it,i)=>{ const h=(H-m.t-m.b)*it.v/mx, x=m.l+i*bw+bw*.15, y=H-m.b-h; g+=`<rect x="${x}" y="${y}" width="${bw*.7}" height="${Math.max(h,2)}" rx="4" fill="${i===items.length-1?'#ffd23f':'#3fa9ff'}"/><text x="${x+bw*.35}" y="${y-4}" text-anchor="middle" style="font-size:11px">${it.v}</text><text x="${x+bw*.35}" y="${H-7}" text-anchor="middle" style="font-size:9px">${it.l}</text>`; });
+  return `<svg class="ch" viewBox="0 0 ${W} ${H}">${g}</svg>`;
+}
+function aRing(done,tot){ const p=tot?done/tot:0, r=26, c=2*Math.PI*r; return `<svg width="70" height="70" viewBox="0 0 70 70"><circle cx="35" cy="35" r="${r}" fill="none" stroke="var(--line)" stroke-width="8"/><circle cx="35" cy="35" r="${r}" fill="none" stroke="#2ee6c5" stroke-width="8" stroke-linecap="round" stroke-dasharray="${(c*p).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 35 35)"/><text x="35" y="40" text-anchor="middle" style="font-size:14px;font-weight:800">${done}/${tot}</text></svg>`; }
+function capCards(P,withBars){
+  const D=capData(P); if(!D.length) return `<div class="card"><h3>Tus capacidades</h3><div class="sm mut" style="margin-top:6px">Cuando tu profesor registre tus tests físicos, aquí verás tu pentagrama y tu avance.</div></div>`;
+  let h=`<div class="card"><h3>Tus capacidades</h3><div class="xs mut">Puntaje de 1 a 5 según tus tests. La línea punteada es tu primer test.</div>${D.length>=3?aRadar(D,AU.cap):aBars(D,AU.cap)}${capInfo(D,AU.cap)}</div>`;
+  if(withBars&&D.length>=3) h+=`<div class="card"><h3>Primer test vs. último</h3>${aBars(D,AU.cap)}</div>`;
+  return h;
 }
 function aluRender(){
   const app=$('#app'); $('#overlay').innerHTML=''; $('#overlay').classList.remove('on'); document.body.classList.remove('lock');
@@ -1298,14 +1361,16 @@ function aluRender(){
     <button class="btn ghost" data-x="role" data-v="">← Volver al inicio</button></div>`; return;
   }
   const P=ST.plan||{}; const AL=ST.alumno; const today=ymd(new Date());
-  const tabs=[['inicio','Inicio',ICON.hoy],['cal','Calendario',ICON.asistencia],['rut','Rutinas',ICON.tests],['comida','Comida',ICON.guias],['perfil','Perfil',ICON.clientes]];
+  const tabs=[['inicio','Inicio',ICON.hoy],['cal','Calendario',ICON.asistencia],['prog','Progreso',ICON.progreso||ICON.tests],['rut','Rutinas',ICON.tests],['comida','Comida',ICON.guias],['perfil','Perfil',ICON.clientes]];
   let h=`<div class="top"><div><h1>Hola, ${esc(((AL.perfil&&AL.perfil.nombre)||ST.nombre||'').split(' ')[0]||'')} 👋</h1><div class="sub">${AU.msg==='sync'?'Actualizando…':AU.msg==='err'?'Sin conexión: '+esc(AU.err||''):ST.last?'Actualizado '+new Date(ST.last).toTimeString().slice(0,5):''}</div></div><button class="btn sm" data-x="async">↻</button></div>`;
   if(AU.tab==='inicio'){
     const d=(P.dias||{})[today]; const wk=wkKey(new Date()); const am=(AL.animo||{})[today];
     h+=`<div class="card"><div class="xs mut">HOY · ${fdate(today)}</div>${d?`<div style="font-size:20px;font-weight:800;margin-top:4px">🏋️ ${esc(d.t)} <span class="sm mut">${esc(d.h||'')}</span></div>`:'<div style="font-size:18px;font-weight:700;margin-top:4px">Día de descanso 😌</div>'}${(P.tnotas||{})[today]?`<div class="note" style="margin-top:6px">💬 ${esc(P.tnotas[today])}</div>`:''}</div>`;
+    h+=capCards(P,false);
     const rs=(P.recs||[]).filter(r=>(r.dias||[]).includes(ISO(new Date()))).sort((a,b)=>a.h.localeCompare(b.h)); const nowH=new Date().toTimeString().slice(0,5);
     if(rs.length) h+=`<div class="card"><h3>Recordatorios de hoy</h3>${rs.map(r=>`<div style="padding:8px 0;border-top:1px solid var(--line);${r.h<nowH?'opacity:.6':''}"><b>${esc(r.h)}</b> <span class="sm">${esc(r.msg)}</span>${r.gif?(AU.gif[r.gif]?mediaTag(AU.gif[r.gif]):'<div class="xs mut">cargando imagen…</div>'):''}</div>`).join('')}</div>`;
-    h+=`<div class="card"><h3>Objetivos de la semana</h3>${(P.objetivos||[]).map(o=>{ const k=wk+'|'+o.id, on=(AL.ok||{})[k]; return `<label class="obj ${on?'on':''}"><input type="checkbox" data-xc="aok" data-v="${k}" ${on?'checked':''}><span>${esc(o.t)}</span></label>`; }).join('')||'<div class="sm mut" style="margin-top:6px">Tu profesor aún no definió objetivos.</div>'}</div>`;
+    const _dn=(P.objetivos||[]).filter(o=>(AL.ok||{})[wk+'|'+o.id]).length;
+    h+=`<div class="card"><div class="row between"><h3>Objetivos de la semana</h3>${(P.objetivos||[]).length?aRing(_dn,(P.objetivos||[]).length):''}</div>${(P.objetivos||[]).map(o=>{ const k=wk+'|'+o.id, on=(AL.ok||{})[k]; return `<label class="obj ${on?'on':''}"><input type="checkbox" data-xc="aok" data-v="${k}" ${on?'checked':''}><span>${esc(o.t)}</span></label>`; }).join('')||'<div class="sm mut" style="margin-top:6px">Tu profesor aún no definió objetivos.</div>'}</div>`;
     h+=`<div class="card"><h3>¿Cómo te sientes hoy?</h3><div class="moods">${ANIMO.map((e,i)=>`<button class="mood ${am&&am.v===i+1?'on':''}" data-x="amood" data-v="${i+1}"><span>${e}</span><small>${ANIMO_T[i]}</small></button>`).join('')}</div><input id="a_mt" placeholder="Cuéntale algo a tu profesor (opcional)" value="${esc(am?am.t||'':'')}" data-xc="amoodtxt" style="margin-top:8px"></div>`;
   }
   if(AU.tab==='cal'){
@@ -1321,6 +1386,11 @@ function aluRender(){
     if(!r) h+=R.map(x=>`<button class="card rutb" data-x="arut" data-v="${x.id}"><b>${esc(x.n)}</b><div class="xs mut">${x.ej.length} ejercicios · toca para ver</div></button>`).join('')||'<div class="empty">Tu profesor aún no te asignó rutinas.</div>';
     else h+=`<button class="btn ghost sm" data-x="arut" data-v="" style="padding-left:0">← Rutinas</button><h2 style="margin:4px 0 8px">${esc(r.n)}</h2>${r.ej.map(e=>{ const th=exAnim(e.n,{size:56,follow:1}); return `<div class="card"><div class="row">${th?`<div class="exth" style="cursor:default">${th}</div>`:''}<div class="grow"><b>${esc(e.n)}</b><div class="xs mut">${esc(e.fase||'')}</div></div></div><div class="sm" style="margin-top:6px">${[e.s&&'Series: '+e.s,e.lb&&'Carga: '+e.lb+' lb',e.rpe&&'RPE '+e.rpe,e.rm&&e.rm+'% RM',e.fc&&e.fc+' FC máx',e.desc&&'Descanso '+e.desc].filter(Boolean).map(esc).join(' · ')}</div>${e.obs?`<div class="xs mut" style="margin-top:4px">${esc(e.obs)}</div>`:''}</div>`; }).join('')}`;
   }
+  if(AU.tab==='prog'){
+    h+=capCards(P,true); const O=ptOpts(P);
+    if(O.length){ const cur=O.find(x=>x.id===AU.tsel)||O[0]; h+=`<div class="card"><h3>Evolución</h3><div class="row" style="flex-wrap:wrap;margin:6px 0">${O.map(x=>`<button class="btn sm ${x.id===cur.id?'pri':''}" data-x="atsel" data-v="${x.id}">${esc(x.n.length>22?x.n.slice(0,22)+'…':x.n)}</button>`).join('')}</div><div class="xs mut">${esc(cur.n)}${cur.u?' ('+esc(cur.u)+')':''} · toca un punto</div>${aPoints(cur,AU.tsel===cur.id?AU.tpt:null)}</div>`; }
+    h+=`<div class="card"><h3>Constancia: sesiones por semana</h3>${aWeeks(P)}</div>`;
+  }
   if(AU.tab==='comida') h+=`<div class="card"><h3>Recomendaciones alimenticias</h3><div class="sm" style="white-space:pre-wrap;margin-top:8px">${esc(P.nutri||'Tu profesor aún no dejó recomendaciones.')}</div></div>`;
   if(AU.tab==='perfil'){ const p=AL.perfil||{}; const F=(k,l,t)=>`<div><label>${l}</label><input data-xc="aperfil" data-k="${k}" type="${t||'text'}" value="${esc(p[k]!=null?p[k]:(k==='nombre'?ST.nombre||'':''))}"></div>`;
     h+=`<div class="card"><h3>Mis datos personales</h3><div class="f">${F('nombre','Nombre')}${F('edad','Edad','number')}${F('peso','Peso (kg)','number')}${F('estatura','Estatura (cm)','number')}${F('tel','Teléfono','tel')}</div><div class="xs mut" style="margin-top:6px">Tu profesor ve estos datos. Se guardan al salir del campo.</div></div><div class="card"><div class="sm">Cuenta: <b>${esc(ST.user.email||'')}</b></div><button class="btn bad" style="margin-top:8px" data-x="aout">Cerrar sesión</button></div>`; }
@@ -1330,6 +1400,9 @@ function aluAct(a,v){
   const g=x=>{ const e=document.getElementById(x); return e?e.value:''; };
   switch(a){
     case 'aauth': aluAuth(v); break;
+    case 'acap': { const y=scrollY; AU.cap=(AU.cap===v?null:v); render(true); scrollTo(0,y); break; }
+    case 'apt': { const y=scrollY; AU.tpt=Number(v); render(true); scrollTo(0,y); break; }
+    case 'atsel': { const y=scrollY; AU.tsel=v; AU.tpt=null; render(true); scrollTo(0,y); break; }
     case 'atab': AU.tab=v; AU.rut=null; render(true); window.scrollTo(0,0); break;
     case 'async': aluSync(true); break;
     case 'amood': { const t=g('a_mt'); aluSet(A=>{ A.animo=A.animo||{}; const d=ymd(new Date()); A.animo[d]={v:Number(v),t}; }); break; }
@@ -1346,7 +1419,7 @@ document.addEventListener('click',e=>{
   const el=e.target.closest('[data-x]'); if(!el||el.tagName==='INPUT'&&el.type==='checkbox') return; const a=el.dataset.x, v=el.dataset.v;
   if(a==='role'){ setRole(v); return; }
   if(/^pin/.test(a)) return pinAct(a);
-  if(['aauth','atab','async','amood','acm','acd','anote','anotedel','arut','aout'].includes(a)) return aluAct(a,v);
+  if(['aauth','acap','apt','atsel','atab','async','amood','acm','acd','anote','anotedel','arut','aout'].includes(a)) return aluAct(a,v);
   xAct(a,el);
 });
 document.addEventListener('change',e=>{
@@ -1467,6 +1540,7 @@ const ICON = {
   clientes:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.6 3-6 6.5-6s6.5 2.4 6.5 6M17 4.8a3.5 3.5 0 010 6.4M21.5 20c0-2.6-1.6-4.6-4-5.5"/></svg>',
   asistencia:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h16"/><path d="M8 4v16M14 4v16" opacity=".4"/></svg>',
   tests:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l2.5-7 4 14 2.5-7H21"/></svg>',
+  progreso:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 6-3 10H7L4 9z"/><path d="M12 8l4 3-1.5 5h-5L8 11z"/></svg>',
   guias:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5a2 2 0 012-2h13v16H6a2 2 0 00-2 2z"/><path d="M4 19V5M9 8h6M9 12h6"/></svg>',
   ajustes:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.3 1.9l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.9-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1.1-1.5 1.7 1.7 0 00-1.9.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.9 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1.1 1.7 1.7 0 00-.3-1.9l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.9.3H9a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.9-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.9V9a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z"/></svg>'
 };
