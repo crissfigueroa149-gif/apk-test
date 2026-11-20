@@ -1256,9 +1256,10 @@ async function xPublish(cid,silent){
   try{
     for(const r of a.recs){ if(r.gif&&!up[r.gif]&&G[r.gif]){ await dCommit(CL,cloudSave,[dW(CL,`students/${a.sid}/data/g_${r.gif}`,{j:fS(G[r.gif]),u:fI(Date.now())})]); up[r.gif]=1; } }
     await dCommit(CL,cloudSave,[dW(CL,`students/${a.sid}/data/plan`,{j:fS(JSON.stringify(plan)),u:fI(plan.u)})]);
-    const cc=clone(S.clientes[cid]); cc.app.gifUp=up; cc.app.pubAt=plan.u; cc.app.ph=planHash(cid); put('clientes',cid,cc); if(!silent) toast('Enviado al alumno');
-  }catch(e){ if(!silent) toast(apiErr(e)); }
+    const cc=clone(S.clientes[cid]); cc.app.gifUp=up; cc.app.pubAt=plan.u; cc.app.ph=planHash(cid); put('clientes',cid,cc); if(!silent){ const chk=await dGet(CL,cloudSave,`students/${a.sid}/data/plan`); toast(chk&&gI(chk.u)===plan.u?'✅ Enviado al alumno ('+(plan.rutinas||[]).length+' rutinas, '+cards.length+' tests). Que toque ↻':'⚠️ Se envió pero no se pudo confirmar'); }
+  }catch(e){ XERR=apiErr(e); toast('No se pudo enviar al alumno: '+XERR); }
 }
+let XERR='';
 async function xAct(a,el){
   const id=el.dataset.id, v=el.dataset.v, i=Number(el.dataset.i); const g=x=>{ const e=document.getElementById(x); return e?e.value:''; };
   const edit=fn=>{ const c=clone(S.clientes[id]); appOf(c); fn(c.app); put('clientes',id,c); };
@@ -1432,7 +1433,7 @@ function aluRender(){
   }
   const P=ST.plan||{}; const AL=ST.alumno; const today=ymd(new Date());
   const tabs=[['inicio','Inicio',ICON.hoy],['cal','Calendario',ICON.asistencia],['prog','Progreso',ICON.progreso||ICON.tests],['rut','Rutinas',ICON.tests],['comida','Comida',ICON.guias],['perfil','Perfil',ICON.clientes]];
-  let h=`<div class="top"><div><h1>Hola, ${esc(((AL.perfil&&AL.perfil.nombre)||P.nombre||ST.nombre||'').split(' ')[0]||'')} 👋</h1><div class="sub">${AU.msg==='sync'?'Actualizando…':AU.msg==='err'?'Sin conexión: '+esc(AU.err||''):ST.last?'Actualizado '+new Date(ST.last).toTimeString().slice(0,5):''}</div></div><button class="btn sm" data-x="async">↻</button></div>`;
+  let h=`<div class="top"><div><h1>Hola, ${esc(((AL.perfil&&AL.perfil.nombre)||P.nombre||ST.nombre||'').split(' ')[0]||'')} 👋</h1><div class="sub">${AU.msg==='sync'?'Actualizando…':AU.msg==='err'?'Sin conexión: '+esc(AU.err||''):ST.last?'Actualizado '+new Date(ST.last).toTimeString().slice(0,5)+(ST.pu?' · Plan del profesor: '+new Date(ST.pu).toTimeString().slice(0,5):' · ⚠️ Tu profesor aún no ha publicado nada'):''}</div></div><button class="btn sm" data-x="async">↻</button></div>`;
   if(AU.tab==='inicio'){
     const d=(P.dias||{})[today]; const wk=wkKey(new Date()); const am=(AL.animo||{})[today];
     h+=`<div class="card"><div class="xs mut">HOY · ${fdate(today)}</div>${d?`<div style="font-size:20px;font-weight:800;margin-top:4px">🏋️ ${esc(d.t)} <span class="sm mut">${esc(d.h||'')}</span></div>`:'<div style="font-size:18px;font-weight:700;margin-top:4px">Día de descanso 😌</div>'}${(P.tnotas||{})[today]?`<div class="note" style="margin-top:6px">💬 ${esc(P.tnotas[today])}</div>`:''}</div>`;
