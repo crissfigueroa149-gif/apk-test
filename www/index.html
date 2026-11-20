@@ -29,6 +29,9 @@ h1,h2,h3{margin:0;line-height:1.2}
 h1{font-size:24px;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent;display:inline-block}h2{font-size:18px}h3{font-size:15px}
 .top{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:16px 0 8px}
 .top .sub{color:var(--mut);font-size:13px}
+.nav button span{font-size:11px}
+#rtpill{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(74px + env(safe-area-inset-bottom));z-index:60;background:linear-gradient(135deg,#ff9a3c,#ff5fa2);color:#1a0b2e;border-radius:999px;padding:10px 18px;display:none;align-items:center;gap:10px;box-shadow:0 6px 24px rgba(0,0,0,.45);overflow:hidden;cursor:pointer;font-size:16px}
+#rtpill i{position:absolute;left:0;bottom:0;height:3px;background:#1a0b2e;opacity:.5}
 .nav{position:fixed;left:0;right:0;bottom:0;background:rgba(14,8,30,.96);border-top:1px solid var(--line);display:flex;justify-content:center;z-index:5;padding-bottom:env(safe-area-inset-bottom)}
 .nav button{flex:1;max-width:180px;background:none;border:0;padding:10px 4px 9px;color:var(--mut);font:inherit;font-size:12px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px}
 .nav button svg{width:22px;height:22px}
@@ -135,7 +138,7 @@ details summary{cursor:pointer;color:var(--acc);font-size:13px;margin:6px 0}
 </head>
 <body>
 <div id="app"></div>
-<div id="overlay"></div>
+<div id="overlay"></div><div id="rtpill" data-a="reststop" style="display:none"></div>
 <div id="exov" class="exov" data-a="exclose" style="display:none"></div>
 <div id="toast"></div>
 <script>
@@ -245,7 +248,7 @@ const lbToKg = v => v/2.2046;
 const COLS = ['clientes','sesiones','tests','mediciones','asistencia','metas','macros','plantillas'];
 const S = {}; COLS.forEach(c=>S[c]={});
 let dbh = null, mode = 'cargando', loaded = {}, chain = {};
-function persistLocal(){ try{ const old=localStorage.getItem('entrenabilidad_v1'); if(old) localStorage.setItem('entrenabilidad_v1_bak',old); localStorage.setItem('entrenabilidad_v1',JSON.stringify(S)); }catch(e){} }
+function persistLocal(){ try{ const old=localStorage.getItem('entrenabilidad_v1'); if(old) localStorage.setItem('entrenabilidad_v1_bak',old); localStorage.setItem('entrenabilidad_v1',JSON.stringify(S)); }catch(e){} if(typeof cloudSchedule==='function') cloudSchedule(); }
 function loadLocal(){ for(const k of ['entrenabilidad_v1','entrenabilidad_v1_bak']){ try{ const r=localStorage.getItem(k); if(r){ const o=JSON.parse(r); COLS.forEach(c=>{ S[c]=o[c]||{}; }); return; } }catch(e){} } }
 function queue(key,fn){ const p=(chain[key]||Promise.resolve()).catch(()=>{}).then(fn); chain[key]=p; return p; }
 function put(col,id,obj){
@@ -807,6 +810,237 @@ function barChart(items,h=150,unit=''){
 
 
 
+/* ============ Cuenta en la nube (Firebase por REST, con respaldo local) ============ */
+const LS_CLOUD='entrenabilidad_cloud';
+function cloudGet(){ let c={}; try{ c=JSON.parse(localStorage.getItem(LS_CLOUD)||'{}')||{}; }catch(e){} c.sig=c.sig||{}; c.ut=c.ut||{}; c.tomb=c.tomb||{}; c.dirty=c.dirty||{}; c.lastPull=c.lastPull||0; return c; }
+let CL=cloudGet(), cloudBusy=false, cloudT=0, cloudSeq=0;
+function cloudSave(){ try{ localStorage.setItem(LS_CLOUD,JSON.stringify(CL)); }catch(e){} }
+const hsh=s=>{ let h=5381; for(let i=0;i<s.length;i++) h=((h<<5)+h+s.charCodeAt(i))|0; return h+':'+s.length; };
+const fbOn=()=>!!(CL.cfg&&CL.cfg.apiKey&&CL.cfg.projectId);
+const fbBase=()=>`https://firestore.googleapis.com/v1/projects/${CL.cfg.projectId}/databases/(default)/documents`;
+async function fbAuth(path,body){
+  const r=await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:${path}?key=${encodeURIComponent(CL.cfg.apiKey)}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  const j=await r.json().catch(()=>({})); if(!r.ok) throw new Error((j.error&&j.error.message)||('HTTP '+r.status)); return j;
+}
+function fbSession(j){ const u=CL.user||{}; CL.user={email:j.email||u.email,uid:j.localId||j.user_id||u.uid,refresh:j.refreshToken||j.refresh_token||u.refresh,idToken:j.idToken||j.id_token,exp:Date.now()+(Number(j.expiresIn||j.expires_in)||3600)*1000-60000}; cloudSave(); }
+async function fbToken(){
+  if(!CL.user) throw new Error('NO_SESSION'); if(CL.user.idToken&&CL.user.exp>Date.now()) return CL.user.idToken;
+  const r=await fetch(`https://securetoken.googleapis.com/v1/token?key=${encodeURIComponent(CL.cfg.apiKey)}`,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'grant_type=refresh_token&refresh_token='+encodeURIComponent(CL.user.refresh)});
+  const j=await r.json().catch(()=>({})); if(!r.ok) throw new Error((j.error&&j.error.message)||'TOKEN_EXPIRED'); fbSession(j); return CL.user.idToken;
+}
+async function fbCall(url,body){
+  const tok=await fbToken(); const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify(body)});
+  const j=await r.json().catch(()=>({})); if(!r.ok){ const e=new Error((j.error&&(j.error.status||j.error.message))||('HTTP '+r.status)); e.code=r.status; throw e; } return j;
+}
+function cloudErr(e){
+  const m=String((e&&e.message)||e||'');
+  const T={EMAIL_EXISTS:'Ese correo ya tiene cuenta: usa «Entrar».',INVALID_LOGIN_CREDENTIALS:'Correo o clave incorrectos.',INVALID_PASSWORD:'Clave incorrecta.',EMAIL_NOT_FOUND:'No existe una cuenta con ese correo.',INVALID_EMAIL:'El correo no es válido.',OPERATION_NOT_ALLOWED:'En Firebase falta activar «Correo electrónico/contraseña» en Authentication.',TOO_MANY_ATTEMPTS_TRY_LATER:'Demasiados intentos: espera unos minutos.',PERMISSION_DENIED:'Firestore rechazó el acceso: revisa que pegaste y publicaste las reglas.',NOT_FOUND:'No encuentro la base Firestore: créala en Firebase («Firestore Database»).',TOKEN_EXPIRED:'La sesión venció: vuelve a entrar.',NO_SESSION:'Entra a tu cuenta primero.',USER_DISABLED:'La cuenta está deshabilitada.'};
+  for(const k in T) if(m.includes(k)) return T[k];
+  if(/WEAK_PASSWORD|at least 6/i.test(m)) return 'La clave debe tener al menos 6 caracteres.';
+  if(/API key/i.test(m)) return 'La clave de API no es válida: revísala en Firebase.';
+  if(/Failed to fetch|NetworkError|Load failed/i.test(m)) return 'Sin conexión: se sincronizará cuando haya internet.';
+  return 'No se pudo sincronizar ('+m.slice(0,80)+').';
+}
+/* detecta cambios locales comparando contra la última versión sincronizada */
+function cloudScan(){
+  const now=Date.now(); const seen=new Set();
+  COLS.forEach(col=>Object.entries(S[col]||{}).forEach(([id,o])=>{ const k=col+'/'+id; seen.add(k); const h=hsh(JSON.stringify(o)); if(CL.sig[k]!==h){ CL.sig[k]=h; CL.ut[k]=now*1000+(cloudSeq++%1000); CL.dirty[k]=1; delete CL.tomb[k]; } }));
+  Object.keys(CL.sig).forEach(k=>{ if(!seen.has(k)){ delete CL.sig[k]; const t=now*1000+(cloudSeq++%1000); CL.ut[k]=t; CL.tomb[k]=t; CL.dirty[k]=1; } });
+}
+const fbDocId=k=>k.replace('/','~');
+const fbVal=f=>f==null?undefined:(f.stringValue!==undefined?f.stringValue:f.integerValue!==undefined?Number(f.integerValue):f.booleanValue);
+async function cloudPull(){
+  let changed=false, last=CL.lastPull||0;
+  for(;;){
+    const j=await fbCall(`${fbBase()}/users/${CL.user.uid}:runQuery`,{structuredQuery:{from:[{collectionId:'items'}],where:{fieldFilter:{field:{fieldPath:'u'},op:'GREATER_THAN',value:{integerValue:String(last)}}},orderBy:[{field:{fieldPath:'u'},direction:'ASCENDING'}],limit:200}});
+    const docs=(Array.isArray(j)?j:[]).filter(x=>x.document).map(x=>x.document.fields||{});
+    docs.forEach(f=>{
+      const k=fbVal(f.k), u=fbVal(f.u), del=fbVal(f.d); if(!k||!u) return; last=Math.max(last,u);
+      const [col,...r]=k.split('/'); const id=r.join('/'); if(!S[col]) return; const lu=CL.ut[k]||0;
+      if(u>lu){
+        if(del){ if(S[col][id]!==undefined){ delete S[col][id]; changed=true; } delete CL.sig[k]; CL.tomb[k]=u; }
+        else { try{ const o=JSON.parse(fbVal(f.j)); S[col][id]=o; CL.sig[k]=hsh(JSON.stringify(o)); delete CL.tomb[k]; changed=true; }catch(e){ return; } }
+        CL.ut[k]=u; delete CL.dirty[k];
+      } else if(u<lu){ CL.dirty[k]=1; }
+    });
+    if(docs.length<200) break;
+  }
+  CL.lastPull=last; return changed;
+}
+async function cloudPush(){
+  const keys=Object.keys(CL.dirty); let n=0;
+  for(let i=0;i<keys.length;i+=100){
+    const chunk=keys.slice(i,i+100);
+    const writes=chunk.map(k=>{ const [col,...r]=k.split('/'); const id=r.join('/'); const o=(S[col]||{})[id]; const del=o===undefined;
+      return {update:{name:`projects/${CL.cfg.projectId}/databases/(default)/documents/users/${CL.user.uid}/items/${fbDocId(k)}`,fields:{k:{stringValue:k},j:{stringValue:del?'{}':JSON.stringify(o)},u:{integerValue:String(CL.ut[k])},d:{booleanValue:del}}}}; });
+    await fbCall(`${fbBase()}:commit`,{writes}); chunk.forEach(k=>{ delete CL.dirty[k]; }); n+=chunk.length; cloudSave();
+  }
+  return n;
+}
+async function syncNow(manual){
+  if(dbh||!fbOn()||!CL.user||cloudBusy) { if(manual&&!fbOn()) toast('Primero guarda los datos de tu proyecto Firebase'); return; }
+  cloudBusy=true; CL.status={t:Date.now(),state:'sync'}; if(ui.tab==='ajustes') render();
+  try{
+    cloudScan(); const ch=await cloudPull(); cloudScan(); const up=await cloudPush();
+    if(ch){ persistLocal(); }
+    CL.status={t:Date.now(),state:'ok',msg:'Sincronizado'}; CL.lastSync=Date.now(); cloudSave(); if(ch||manual) render();
+    if(manual) toast(up||ch?'Datos sincronizados':'Todo estaba al día');
+  }catch(e){ CL.status={t:Date.now(),state:'err',msg:cloudErr(e)}; cloudSave(); if(manual) toast(CL.status.msg); }
+  finally{ cloudBusy=false; if(ui.tab==='ajustes'&&!ui.modal) render(); }
+}
+function cloudSchedule(){ if(dbh||!fbOn()||!CL.user) return; clearTimeout(cloudT); cloudT=setTimeout(()=>syncNow(false),4000); }
+async function cloudAuth(kind){
+  const em=(document.getElementById('fbem')||{}).value||'', pw=(document.getElementById('fbpw')||{}).value||'';
+  if(!em.trim()) return toast('Escribe tu correo'); if(kind!=='reset'&&!pw) return toast('Escribe tu clave');
+  try{
+    if(kind==='reset'){ await fbAuth('sendOobCode',{requestType:'PASSWORD_RESET',email:em.trim()}); return toast('Te enviamos un correo para cambiar la clave'); }
+    const j=await fbAuth(kind==='up'?'signUp':'signInWithPassword',{email:em.trim(),password:pw,returnSecureToken:true});
+    if(CL.user&&CL.user.uid&&CL.user.uid!==j.localId){ CL.sig={};CL.ut={};CL.tomb={};CL.dirty={};CL.lastPull=0; }
+    fbSession(j); cloudSave(); toast(kind==='up'?'Cuenta creada':'Sesión iniciada'); render(); syncNow(true);
+  }catch(e){ toast(cloudErr(e)); }
+}
+const FB_RULES="rules_version = '2';\nservice cloud.firestore {\n  match /databases/{database}/documents {\n    match /users/{uid}/{document=**} {\n      allow read, write: if request.auth != null && request.auth.uid == uid;\n    }\n  }\n}";
+function cloudCard(){
+  if(dbh) return '';
+  const u=CL.user, st=CL.status||{}; const pend=Object.keys(CL.dirty||{}).length;
+  const guide=`<details style="margin-top:8px"><summary class="sm" style="cursor:pointer;color:var(--acc)">Cómo crear tu proyecto Firebase (gratis, unos 5 minutos)</summary><ol class="sm" style="margin:8px 0 0;padding-left:20px;line-height:1.55"><li>Entra a <b>console.firebase.google.com</b> con tu cuenta de Google y toca <b>Crear un proyecto</b> (el nombre es libre; puedes desactivar Google Analytics).</li><li>Menú <b>Compilación → Authentication → Comenzar → Método de acceso</b> y activa <b>Correo electrónico/contraseña</b>.</li><li><b>Compilación → Firestore Database → Crear base de datos</b>: elige una ubicación (por ejemplo southamerica-east1) y el modo <b>producción</b>.</li><li>En Firestore abre la pestaña <b>Reglas</b>, borra lo que hay, pega estas reglas y toca <b>Publicar</b>:<pre style="white-space:pre-wrap;background:rgba(255,255,255,.07);border-radius:8px;padding:8px;font-size:11px;margin:6px 0">${esc(FB_RULES)}</pre><button class="btn sm" data-a="fbrules">Copiar reglas</button></li><li>Engranaje ⚙ <b>Configuración del proyecto → General</b>: copia la <b>Clave de API web</b> y el <b>ID del proyecto</b> y pégalos aquí abajo.</li></ol></details>`;
+  let body='';
+  if(!fbOn()) body=`<div class="sm mut" style="margin:6px 0">Con una cuenta tus datos se guardan también en la nube (en <b>tu</b> proyecto de Firebase) y puedes abrirlos desde otro teléfono. La app sigue funcionando sin internet.</div>${guide}<div class="f" style="margin-top:10px"><div class="full"><label>Clave de API web</label><input id="fbkey" placeholder="AIza..." autocomplete="off"></div><div class="full"><label>ID del proyecto</label><input id="fbproj" placeholder="mi-proyecto-12345" autocomplete="off"></div></div><div class="row" style="margin-top:8px"><button class="btn pri" data-a="fbcfg">Guardar datos del proyecto</button></div>`;
+  else if(!u) body=`<div class="sm mut" style="margin:6px 0">Proyecto: <b>${esc(CL.cfg.projectId)}</b></div><div class="f"><div><label>Correo</label><input id="fbem" type="email" autocomplete="email" placeholder="tu@correo.com"></div><div><label>Clave (mínimo 6)</label><input id="fbpw" type="password" autocomplete="current-password"></div></div><div class="row" style="margin-top:8px"><button class="btn pri" data-a="fbin">Entrar</button><button class="btn" data-a="fbup">Crear cuenta</button><button class="btn ghost" data-a="fbreset">Olvidé mi clave</button></div><div class="row" style="margin-top:6px"><button class="btn sm ghost" data-a="fbcfgclr">Cambiar proyecto</button></div>`;
+  else body=`<div class="row between" style="margin:6px 0"><div class="sm">Conectado como <b>${esc(u.email||'')}</b></div><span class="chip ${st.state==='err'?'bad':st.state==='sync'?'warn':'ok'}">${st.state==='err'?'Con error':st.state==='sync'?'Sincronizando…':'Al día'}</span></div><div class="xs mut">${CL.lastSync?'Última sincronización: '+new Date(CL.lastSync).toLocaleString('es-CL'):'Aún sin sincronizar'}${pend?' · '+pend+' cambios pendientes':''}</div>${st.state==='err'?`<div class="sm" style="margin-top:6px;color:var(--bad)">${esc(st.msg||'')}</div>`:''}<div class="row" style="margin-top:10px"><button class="btn pri" data-a="fbsync">Sincronizar ahora</button><button class="btn" data-a="fbout">Cerrar sesión</button></div><div class="xs mut" style="margin-top:8px">Los cambios se envían solos unos segundos después de guardarlos y cuando abres la app. Si borras algo, también se borra en tus otros teléfonos.</div>`;
+  return `<div class="card"><h3>Cuenta y nube</h3>${body}</div>`;
+}
+function cloudAction(a,el){
+  if(a==='fbcfg'){ const k=(document.getElementById('fbkey')||{}).value||'', p=(document.getElementById('fbproj')||{}).value||''; if(!k.trim()||!p.trim()) return toast('Pega la clave de API y el ID del proyecto'); CL.cfg={apiKey:k.trim(),projectId:p.trim()}; cloudSave(); render(); return toast('Datos guardados: ahora entra con tu correo'); }
+  if(a==='fbcfgclr'){ delete CL.cfg; delete CL.user; cloudSave(); render(); return; }
+  if(a==='fbin') return cloudAuth('in'); if(a==='fbup') return cloudAuth('up'); if(a==='fbreset') return cloudAuth('reset');
+  if(a==='fbsync') return syncNow(true);
+  if(a==='fbout'){ delete CL.user; CL.status=null; cloudSave(); render(); return toast('Sesión cerrada (los datos siguen en el teléfono)'); }
+  if(a==='fbrules'){ try{ navigator.clipboard.writeText(FB_RULES).then(()=>toast('Reglas copiadas'),()=>fallbackCopy(FB_RULES)); }catch(e){ fallbackCopy(FB_RULES); } }
+}
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden) syncNow(false); });
+window.addEventListener('online',()=>syncNow(false));
+setInterval(()=>{ if(!document.hidden) syncNow(false); },180000);
+setTimeout(()=>syncNow(false),2000);
+
+/* ============ Guías: Borg, %RM, %FC y descansos ============ */
+const BORG10=[
+ [0,'Reposo','Sin esfuerzo','—'],[0.5,'Apenas perceptible','Casi nada de esfuerzo','—'],[1,'Muy suave','Calentamiento; conversas sin problema','6+'],
+ [2,'Suave','Podrías seguir mucho rato','6+'],[3,'Moderado','Conversas cómodo; respiración tranquila','5-6'],[4,'Algo fuerte','Empiezas a notar el esfuerzo','4-5'],
+ [5,'Fuerte','Respiración marcada; hablar cuesta un poco','4'],[6,'Fuerte +','Esfuerzo claro; quedan varias repeticiones','4'],[7,'Muy fuerte','Hablar cuesta; quedan unas 3 repeticiones','3'],
+ [8,'Muy fuerte +','Muy exigente; quedan 2 repeticiones','2'],[9,'Casi máximo','Al límite; queda 1 repetición','1'],[10,'Máximo','No podrías hacer una más','0']];
+const BORG20=[[6,'Ningún esfuerzo'],[7,'Extremadamente ligero'],[9,'Muy ligero'],[11,'Ligero'],[13,'Algo duro'],[15,'Duro (pesado)'],[17,'Muy duro'],[19,'Extremadamente duro'],[20,'Esfuerzo máximo']];
+const borgCol=v=>v<=3?'#7cf0a0':v<=5?'#ffd23f':v<=8?'#ff9a3c':'#ff5f7e';
+function borgHTML(){
+  return `<h3 style="margin:0 0 4px">Escala de Borg CR10 (0 a 10)</h3><div class="xs mut" style="margin-bottom:8px">Es el RPE que se anota en las sesiones. RIR = repeticiones que quedan en reserva.</div>
+  <table><tr><th>RPE</th><th>Sensación</th><th>RIR</th></tr>${BORG10.map(b=>`<tr><td><b style="color:${borgCol(b[0])}">${String(b[0]).replace('.',',')}</b></td><td><b>${b[1]}</b><div class="xs mut">${b[2]}</div></td><td>${b[3]}</td></tr>`).join('')}</table>
+  <h3 style="margin:14px 0 4px">Escala de Borg 6 a 20</h3><div class="xs mut" style="margin-bottom:6px">Para cardio: el número × 10 se parece a la frecuencia cardíaca (15 ≈ 150 lpm).</div>
+  <table><tr><th>Valor</th><th>Percepción</th><th>FC aprox.</th></tr>${BORG20.map(b=>`<tr><td><b>${b[0]}</b></td><td>${b[1]}</td><td>${b[0]*10} lpm</td></tr>`).join('')}</table>
+  <div class="xs mut" style="margin-top:8px">Carga interna de la sesión = duración (min) × RPE.</div>`;
+}
+function rirOf(v){ const n=Number(v); if(isNaN(n)) return ''; if(n>=10) return '0 RIR (al fallo)'; if(n>=9) return '≈1 RIR'; if(n>=8) return '≈2 RIR'; if(n>=7) return '≈3 RIR'; if(n>=6) return '≈4 RIR'; if(n>=5) return '≈4-5 RIR'; return 'muy ligero'; }
+function borgName(v){ const n=Number(v); if(isNaN(n)) return ''; const b=BORG10.filter(x=>x[0]<=n).pop(); return b?b[1]:''; }
+
+/* ---- %RM ---- */
+const RM_ROWS=[[100,'1'],[95,'2'],[90,'4'],[85,'6'],[80,'8'],[75,'10'],[70,'12'],[65,'15'],[60,'20'],[55,'20+'],[50,'25+']];
+const rmGoal=p=>p>=85?['Fuerza máxima','#ff9a3c']:p>=67?['Hipertrofia','#ffd23f']:['Resistencia muscular','#2ee6c5'];
+function rmCalc(){
+  const g=id=>{ const e=document.getElementById(id); return e?e.value:''; };
+  const w=num(g('rm_w')), r=num(g('rm_r')), k1=num(g('rm_1')), un=g('rm_u')||'lb'; let rm=null, nota='';
+  if(k1){ rm=k1; nota='1RM ingresado.'; }
+  else if(w&&r){ if(r===1) rm=w; else { const ep=w*(1+r/30), br=r<37?w*36/(37-r):ep; rm=(ep+br)/2; nota=`Promedio de Epley (${fmt(ep,0)}) y Brzycki (${fmt(br,0)}). ${r>10?'Con más de 10 repeticiones la estimación es menos exacta.':''}`; } }
+  const out=document.getElementById('rm_out'); if(!out) return;
+  if(!rm){ out.innerHTML='<div class="empty">Ingresa el peso y las repeticiones, o tu 1RM.</div>'; return; }
+  out.innerHTML=`<div class="row between" style="margin:8px 0"><div><div class="xs mut">1RM estimado</div><div class="big" style="font-size:30px;font-weight:800">${fmt(rm,0)} <span class="sm mut">${un}</span></div></div><div class="xs mut" style="max-width:55%">${nota}</div></div>
+  <table><tr><th>% RM</th><th>Carga</th><th>Reps máx.</th><th>Objetivo</th></tr>${RM_ROWS.map(([p,rp])=>{ const [gl,gc]=rmGoal(p); return `<tr><td><b>${p}%</b></td><td><b>${fmt(rm*p/100,0)}</b> ${un}</td><td>${rp}</td><td><span style="color:${gc}">●</span> ${gl}</td></tr>`; }).join('')}</table>
+  <div class="xs mut" style="margin-top:8px">Referencia NSCA/ACE: fuerza ≥85% (hasta 6 reps), hipertrofia 67-85% (6-12 reps), resistencia ≤67% (12 o más). Potencia: 75-90% con pocas repeticiones explosivas (o 30-60% a máxima velocidad). Las repeticiones son aproximadas y varían entre personas y ejercicios.</div>`;
+}
+/* ---- %FC ---- */
+const FC_Z=[['Z1','50-60%',.5,.6,'Recuperación / muy ligera','2-3'],['Z2','60-70%',.6,.7,'Base aeróbica (quema de grasa)','3-5'],['Z3','70-80%',.7,.8,'Aeróbica: mejora la resistencia','5-6'],['Z4','80-90%',.8,.9,'Umbral: alta intensidad','7-8'],['Z5','90-100%',.9,1,'Máxima / anaeróbica','9-10']];
+function fcCalc(){
+  const g=id=>{ const e=document.getElementById(id); return e?e.value:''; };
+  const ed=num(g('fc_e')), rep=num(g('fc_r')), mx=num(g('fc_m')), act=num(g('fc_a')); const out=document.getElementById('fc_out'); if(!out) return;
+  if(!ed&&!mx){ out.innerHTML='<div class="empty">Ingresa la edad (o la FC máxima medida).</div>'; return; }
+  const tan=ed?Math.round(208-0.7*ed):null, cla=ed?220-ed:null, fm=mx||tan;
+  const zl=FC_Z.map(z=>`<tr><td><b>${z[0]}</b> ${z[1]}</td><td><b>${Math.round(fm*z[2])}-${Math.round(fm*z[3])}</b></td><td>${rep?Math.round(rep+z[2]*(fm-rep))+'-'+Math.round(rep+z[3]*(fm-rep)):'–'}</td><td>${z[4]}<div class="xs mut">Borg ${z[5]}</div></td></tr>`).join('');
+  let ac=''; if(act&&fm){ const p=Math.round(100*act/fm); const z=FC_Z.find(z=>p/100<=z[3])||FC_Z[4]; ac=`<div class="card" style="margin:8px 0"><b>${act} lpm</b> = <b>${p}%</b> de la FC máx. · zona <b>${z[0]}</b> (${z[4]})${rep?` · ${Math.round(100*(act-rep)/(fm-rep))}% de la reserva`:''}</div>`; }
+  out.innerHTML=`<div class="row between" style="margin:8px 0"><div><div class="xs mut">FC máxima ${mx?'(medida)':'(Tanaka)'}</div><div style="font-size:30px;font-weight:800">${fm} <span class="sm mut">lpm</span></div></div><div class="xs mut" style="max-width:55%">${mx?'':`Fórmula de Tanaka: 208 − 0,7 × edad. La clásica (220 − edad) da ${cla}. `}Es una estimación: puede variar ±10 lpm.</div></div>${ac}
+  <table><tr><th>Zona</th><th>% FC máx</th><th>Karvonen</th><th>Para qué sirve</th></tr>${zl}</table>
+  <div class="xs mut" style="margin-top:8px">«% FC máx» = porcentaje directo de la FC máxima. «Karvonen» usa la reserva (FC máx − FC de reposo) y necesita la FC en reposo.</div>`;
+}
+/* ---- descansos ---- */
+const REST_SETS=[['Fuerza máxima','1-6 reps, ≥85% RM','3-5 min','#ff9a3c'],['Potencia','Explosivo, pocas reps','3-5 min','#ff5fa2'],['Hipertrofia','6-12 reps, 67-85% RM','1-2 min (30-90 s en aislados)','#ffd23f'],['Resistencia muscular','≥12 reps, ≤67% RM','30-60 s (hasta 90 s)','#2ee6c5'],['Circuito','Estaciones seguidas','15-30 s entre estaciones y 1-2 min entre vueltas','#3fa9ff']];
+const REST_TYPES=[
+ ['Pasivo','Sin moverte (de pie o sentado). Es el descanso normal entre series pesadas: permite recuperar la fuerza para la serie siguiente.'],
+ ['Activo','Movimiento suave a baja intensidad (caminar, movilidad, bici suave; esfuerzo Borg 2-3). Ayuda a bajar el pulso entre intervalos y a recuperar entre sesiones.'],
+ ['Intra-serie (cluster)','Pausas de 10-30 s dentro de una misma serie (rest-pause o cluster) para sostener más carga o velocidad. Útil en potencia y fuerza.'],
+ ['Entre ejercicios','1-3 min al cambiar de ejercicio. Más corto si trabajan músculos distintos (biserie, circuito); más largo si son pesados y del mismo grupo.'],
+ ['Entre sesiones','El mismo grupo muscular: 24-48 h en trabajo de hipertrofia o ligero; 48-72 h tras fuerza máxima o mucho volumen.'],
+ ['Día de descanso activo','Un día a la semana con caminata de 20-30 min y movilidad, sin entrenar fuerza. Mantiene el movimiento sin sumar fatiga.'],
+ ['Descanso total','Un día completo sin entrenar cuando hay fatiga acumulada, dolor que no cede o mal sueño.'],
+ ['Semana de descarga','Cada 4-8 semanas: reducir el volumen cerca de 40-50% y mantener la técnica. Antes de iniciar un nuevo bloque.'],
+ ['Sueño','7-9 horas por noche: es el descanso que más rinde para recuperar y ganar fuerza.']];
+const REST_INT=[['Sprints y potencia (sistema de fosfágenos)','trabajo 5-10 s','pausa 1:12 a 1:20 (1-2 min)'],['Intervalos intensos (glucolítico)','trabajo 30 s a 2 min','pausa 1:3 a 1:5'],['Aeróbico por intervalos','trabajo 3-5 min','pausa 1:1 a 1:2'],['HIIT corto','trabajo 20-40 s','pausa 1:1 (20-40 s)']];
+/* temporizador de descanso (pastilla flotante) */
+const REST={end:0,total:0,t:0};
+function restParse(s){ s=String(s||'').toLowerCase().replace(',','.'); const m=s.match(/(\d+(\.\d+)?)/); if(!m) return 0; const n=Number(m[1]); if(/min/.test(s)) return Math.round(n*60); if(/(^|\s)s(eg)?\b/.test(s)||/seg/.test(s)) return Math.round(n); return n<=5?Math.round(n*60):Math.round(n); }
+function restBeep(){ try{ const A=window.AudioContext||window.webkitAudioContext; const c=new A(); [0,.28,.56].forEach(t=>{ const o=c.createOscillator(),g=c.createGain(); o.frequency.value=880; g.gain.value=.25; o.connect(g); g.connect(c.destination); o.start(c.currentTime+t); o.stop(c.currentTime+t+.18); }); }catch(e){} try{ navigator.vibrate&&navigator.vibrate([300,150,300,150,300]); }catch(e){} }
+function restTick(){
+  const el=document.getElementById('rtpill'); if(!el) return; const left=Math.max(0,Math.ceil((REST.end-Date.now())/1000));
+  if(left>0){ el.style.display='flex'; el.innerHTML=`<b>⏱ ${Math.floor(left/60)}:${String(left%60).padStart(2,'0')}</b><span class="xs">descanso · toca para parar</span><i style="width:${100*left/REST.total}%"></i>`; }
+  else { clearInterval(REST.t); REST.t=0; el.innerHTML='<b>¡Listo! A la siguiente serie</b>'; restBeep(); setTimeout(()=>{ if(!REST.t) el.style.display='none'; },4000); }
+}
+function restStart(sec){ if(!sec) return toast('Escribe un descanso (ej. 90 s o 2 min)'); REST.total=sec; REST.end=Date.now()+sec*1000; clearInterval(REST.t); restTick(); REST.t=setInterval(restTick,250); }
+function restStop(){ clearInterval(REST.t); REST.t=0; const el=document.getElementById('rtpill'); if(el) el.style.display='none'; }
+/* ---- vista ---- */
+function vGuias(){
+  const sub=ui.gsub||'borg'; const T=[['borg','Borg'],['rm','% RM'],['fc','% FC'],['desc','Descansos']];
+  let h=`<div class="top"><div><h1>Guías</h1><div class="sub">Escalas, cargas, pulso y descansos</div></div></div><div class="tabs">${T.map(t=>`<button class="${sub===t[0]?'on':''}" data-a="gsub" data-v="${t[0]}">${t[1]}</button>`).join('')}</div>`;
+  if(sub==='borg') h+=`<div class="card">${borgHTML()}</div>`;
+  if(sub==='rm'){
+    const cs=activos().sort(byName);
+    h+=`<div class="card"><h3>Calculadora de % RM</h3><div class="xs mut" style="margin:4px 0 8px">Pon lo que levantó (peso y repeticiones) o su 1RM, y obtén las cargas de trabajo.</div>
+    <div class="f"><div><label>Cliente (opcional)</label><select id="rm_c" class="gin"><option value="">–</option>${cs.map(c=>`<option value="${c.id}">${esc(c.nombre)}</option>`).join('')}</select></div><div><label>Ejercicio con historial</label><select id="rm_e" class="gin"><option value="">–</option></select></div>
+    <div><label>Peso levantado</label><input id="rm_w" class="gin" type="number" inputmode="decimal" step="any"></div><div><label>Repeticiones</label><input id="rm_r" class="gin" type="number" inputmode="numeric"></div>
+    <div><label>o 1RM conocido</label><input id="rm_1" class="gin" type="number" inputmode="decimal" step="any"></div><div><label>Unidad</label><select id="rm_u" class="gin"><option>lb</option><option>kg</option></select></div></div><div id="rm_out"></div></div>`;
+  }
+  if(sub==='fc'){
+    const cs=activos().sort(byName);
+    h+=`<div class="card"><h3>Zonas de frecuencia cardíaca</h3><div class="xs mut" style="margin:4px 0 8px">Calcula la FC máxima y los latidos de cada zona para dosificar el cardio (el campo «% FC máx» de la sesión).</div>
+    <div class="f"><div class="full"><label>Cliente (opcional)</label><select id="fc_c" class="gin"><option value="">–</option>${cs.map(c=>`<option value="${c.id}">${esc(c.nombre)}${c.edad?' · '+c.edad+' años':''}</option>`).join('')}</select></div>
+    <div><label>Edad</label><input id="fc_e" class="gin" type="number" inputmode="numeric"></div><div><label>FC en reposo (opcional)</label><input id="fc_r" class="gin" type="number" inputmode="numeric"></div>
+    <div><label>FC máxima medida (opcional)</label><input id="fc_m" class="gin" type="number" inputmode="numeric"></div><div><label>FC actual (opcional)</label><input id="fc_a" class="gin" type="number" inputmode="numeric"></div></div><div id="fc_out"></div></div>`;
+  }
+  if(sub==='desc'){
+    h+=`<div class="card"><h3>Temporizador de descanso</h3><div class="xs mut" style="margin:4px 0 8px">Suena y vibra al terminar. También aparece como botón ⏱ en cada ejercicio de la sesión.</div><div class="row">${[30,45,60,90,120,180,300].map(s=>`<button class="btn" data-a="reststart" data-v="${s}">${s<120?s+' s':(s/60)+' min'}</button>`).join('')}</div><div class="row" style="margin-top:8px"><input id="rest_c" type="number" inputmode="numeric" placeholder="Otro (segundos)" style="max-width:170px"><button class="btn pri" data-a="restcustom">Iniciar</button></div></div>
+    <div class="card"><h3>Descanso entre series según el objetivo</h3><table><tr><th>Objetivo</th><th>Trabajo</th><th>Descanso</th></tr>${REST_SETS.map(r=>`<tr><td><span style="color:${r[3]}">●</span> <b>${r[0]}</b></td><td>${r[1]}</td><td><b>${r[2]}</b></td></tr>`).join('')}</table><div class="xs mut" style="margin-top:6px">Guía NSCA/NASM; ajústala según la condición del cliente y la dificultad del ejercicio (los multiarticulares piden más pausa).</div></div>
+    <div class="card"><h3>Tipos de descanso</h3>${REST_TYPES.map(r=>`<div style="padding:8px 0;border-top:1px solid var(--line)"><b>${r[0]}</b><div class="sm mut">${r[1]}</div></div>`).join('')}</div>
+    <div class="card scroll"><h3>Intervalos: relación trabajo / pausa</h3><table><tr><th>Tipo de esfuerzo</th><th>Trabajo</th><th>Pausa</th></tr>${REST_INT.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td></tr>`).join('')}</table></div>`;
+  }
+  return h;
+}
+function guiasInit(){
+  const sub=ui.gsub||'borg'; if(ui.tab!=='guias') return; if(sub==='rm') rmCalc(); if(sub==='fc') fcCalc();
+}
+document.addEventListener('input',e=>{ const el=e.target; if(!el||!el.classList||!el.classList.contains('gin')) return; if(el.id==='rm_c'||el.id==='rm_e'||el.id==='fc_c') return; if(el.id.startsWith('rm_')) rmCalc(); if(el.id.startsWith('fc_')) fcCalc(); });
+document.addEventListener('change',e=>{
+  const el=e.target; if(!el||!el.classList||!el.classList.contains('gin')) return;
+  if(el.id==='rm_c'){ const by=el.value?exHist(el.value):{}; const ks=Object.keys(by).filter(k=>by[k].pts.some(p=>p.rm)); document.getElementById('rm_e').innerHTML='<option value="">–</option>'+ks.map(k=>`<option value="${esc(k)}">${esc(by[k].n)}</option>`).join(''); document.getElementById('rm_e')._by=by; }
+  if(el.id==='rm_e'){ const by=document.getElementById('rm_e')._by||{}; const o=by[el.value]; if(o){ const m=Math.max(...o.pts.map(p=>p.rm||0)); document.getElementById('rm_1').value=Math.round(m); document.getElementById('rm_w').value=''; document.getElementById('rm_r').value=''; document.getElementById('rm_u').value='lb'; rmCalc(); } }
+  if(el.id==='fc_c'){ const c=cli(el.value); if(c&&c.edad) document.getElementById('fc_e').value=c.edad; fcCalc(); }
+  if(el.id==='rm_u') rmCalc();
+});
+/* sugerencias dentro de cada ejercicio de la sesión */
+function exLive(i){
+  const d=ui.d; if(!d||!d.ejercicios||!d.ejercicios[i]) return ''; const e=d.ejercicios[i], out=[];
+  if(String(e.rpe||'').trim()){ const n=parseFloat(String(e.rpe).replace(',','.')); if(!isNaN(n)) out.push(`RPE ${String(e.rpe)}: ${borgName(n)} (${rirOf(n)})`); }
+  const pr=parseFloat(String(e.rm||'').replace(',','.')); if(!isNaN(pr)&&d.cid){ const o=exHist(d.cid,d._id)[exNorm(e.n)]; if(o){ const m=Math.max(...o.pts.map(p=>p.rm||0)); if(m) out.push(`${pr}% RM ≈ ${Math.round(m*pr/100)} lb (1RM est. ${Math.round(m)} lb)`); } }
+  const pf=String(e.fc||'').match(/(\d+)(?:\s*[-–a]\s*(\d+))?/); const c=d.cid&&cli(d.cid); if(pf&&c&&num(c.edad)){ const fm=208-0.7*num(c.edad), a=Number(pf[1]), b=pf[2]?Number(pf[2]):a; out.push(`FC ≈ ${Math.round(fm*a/100)}${b!==a?'-'+Math.round(fm*b/100):''} lpm`); }
+  const s=restParse(e.desc); if(s) out.push(`Descanso ${s>=120?Math.round(s/6)/10+' min':s+' s'}`);
+  return out.join(' · ');
+}
+document.addEventListener('input',e=>{ const p=e.target&&e.target.dataset&&e.target.dataset.b; const m=p&&p.match(/^ejercicios\.(\d+)\.(rpe|rm|fc|desc|n)$/); if(m) setTimeout(()=>{ const h=document.getElementById('xh-'+m[1]); if(h) h.textContent=exLive(Number(m[1])); },0); });
+
 /* ============ Respaldo en archivo y aviso ============ */
 const LS_META='entrenabilidad_meta';
 function metaGet(){ try{ return JSON.parse(localStorage.getItem(LS_META)||'{}'); }catch(e){ return {}; } }
@@ -912,6 +1146,7 @@ const ICON = {
   clientes:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.6 3-6 6.5-6s6.5 2.4 6.5 6M17 4.8a3.5 3.5 0 010 6.4M21.5 20c0-2.6-1.6-4.6-4-5.5"/></svg>',
   asistencia:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h16"/><path d="M8 4v16M14 4v16" opacity=".4"/></svg>',
   tests:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l2.5-7 4 14 2.5-7H21"/></svg>',
+  guias:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5a2 2 0 012-2h13v16H6a2 2 0 00-2 2z"/><path d="M4 19V5M9 8h6M9 12h6"/></svg>',
   ajustes:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.3 1.9l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.9-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1.1-1.5 1.7 1.7 0 00-1.9.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.9 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1.1 1.7 1.7 0 00-.3-1.9l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.9.3H9a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.9-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.9V9a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z"/></svg>'
 };
 function daysChips(dias){ return `<span class="days">${DORD.map(l=>`<span class="${(dias||[]).includes(l)?'on':''}">${l}</span>`).join('')}</span>`; }
@@ -1138,6 +1373,7 @@ function vAjustes(){
   h+=`<div class="card"><h3>Almacenamiento</h3><div class="sm" style="margin-top:6px">${mode==='nube'?'Los datos se guardan en la base de datos de esta página y sobreviven a cerrar o cambiar de dispositivo.':'Los datos se guardan en este teléfono, dentro de la app: se conservan al cerrarla, al reiniciar y al actualizarla. Se pierden si desinstalas la app o borras sus datos: guarda un respaldo con frecuencia.'}</div></div>`;
   h+=`<div class="card"><h3>Cargar clientes de tus Excel</h3><div class="sm mut" style="margin:6px 0 10px">Crea ${SEED_CLIENTES.length} clientes con los días, horarios, clases y valores que aparecen en tus planillas (sin duplicar los que ya existen) y la medición InBody de Cristian. El sexo solo se completó donde tus planillas lo indican: complétalo en cada ficha antes de hacer tests.</div><button class="btn pri" data-a="seed">Cargar clientes</button></div>`;
   h+=`<div class="card"><details><summary style="font-size:15px;font-weight:600;cursor:pointer">Biblioteca de movimientos <span class="xs mut" style="font-weight:400">· ${Object.keys(EXA).length} animaciones</span></summary><div class="xs mut" style="margin-top:6px">Toca uno para verlo grande. También aparecen junto al nombre de cada ejercicio de una sesión.</div><div class="lib">${Object.keys(EXA).map(k=>`<button data-a="exdemo" data-k="${k}">${exAnimK(k,{size:70})}<div><b>${EXA[k].n}</b></div><div style="color:var(--mut)">${EXA[k].mus||''}</div></button>`).join('')}</div></details></div>`;
+  h+=cloudCard();
   const lb=metaGet().lastBackup;
   h+=`<div class="card"><h3>Respaldo</h3><div class="sm mut" style="margin:6px 0 10px">Último respaldo: <b>${lb?fdate(ymd(new Date(lb)))+' ('+backupAge()+' d)':'nunca'}</b>. Guárdalo en tu correo, Drive o WhatsApp para no perder datos si cambias de teléfono o desinstalas la app.</div><div class="row" style="margin:8px 0"><button class="btn pri" data-a="exportf">Guardar / enviar respaldo (archivo)</button><button class="btn" data-a="importf">Restaurar desde archivo</button><input type="file" id="impf" accept=".json,application/json" style="display:none"></div><div class="row" style="margin:8px 0"><button class="btn sm" data-a="backup">Copiar respaldo (texto)</button></div><label>Restaurar pegando el texto</label><textarea id="restore" placeholder="Pega el JSON y toca Restaurar"></textarea><div class="row" style="margin-top:8px"><button class="btn" data-a="restore">Restaurar</button></div></div>`;
   h+=`<div class="card"><h3>Datos que corregí al importar</h3><ul class="sm" style="margin:8px 0 0;padding-left:18px"><li>Rangos de repeticiones que Excel había convertido en fechas (ej. «3-4» → 4 de marzo) ya están restaurados en las tablas del test de fuerza.</li><li>Capacidad aeróbica, hombres 50-59 años: tu tabla decía «Buena 34-44» y «Excelente > 42». Usé Excelente &gt; 44.</li><li>El VO₂máx se muestra con el valor de la tabla de Harvard y ajustado por edad (tu tabla de factores), y la categoría usa el ajustado.</li></ul></div>`;
@@ -1192,7 +1428,8 @@ function exCard(e,i){
   ${exHint(e)}
   <div style="margin-top:8px">${e.series.map((s,j)=>`<div class="set"><span class="n">${j+1}</span><input type="number" inputmode="numeric" data-b="ejercicios.${i}.series.${j}.reps" data-n value="${esc(s.reps)}" placeholder="${esc(s.obj?'reps '+s.obj:'reps')}"><input type="number" step="any" inputmode="decimal" data-b="ejercicios.${i}.series.${j}.lb" data-n value="${esc(s.lb)}" placeholder="${esc(e.lbObj?'lb '+e.lbObj:'lb')}"><button class="btn sm ghost" data-a="delset" data-i="${i}" data-j="${j}">–</button></div>`).join('')}
   <button class="btn sm ghost" data-a="addset" data-i="${i}">+ serie</button></div>
-  <div class="f" style="margin-top:6px;grid-template-columns:repeat(auto-fit,minmax(90px,1fr))"><div><label>RPE</label><input data-b="ejercicios.${i}.rpe" value="${esc(e.rpe)}"></div><div><label>% RM</label><input data-b="ejercicios.${i}.rm" value="${esc(e.rm)}"></div><div><label>% FC máx</label><input data-b="ejercicios.${i}.fc" value="${esc(e.fc)}"></div><div><label>Descanso</label><input data-b="ejercicios.${i}.desc" value="${esc(e.desc)}"></div></div>
+  <div class="f" style="margin-top:6px;grid-template-columns:repeat(auto-fit,minmax(90px,1fr))"><div><label>RPE (Borg)</label><input list="dl-rpe" inputmode="decimal" data-b="ejercicios.${i}.rpe" value="${esc(e.rpe)}"></div><div><label>% RM</label><input list="dl-rm" inputmode="numeric" data-b="ejercicios.${i}.rm" value="${esc(e.rm)}"></div><div><label>% FC máx</label><input list="dl-fc" data-b="ejercicios.${i}.fc" value="${esc(e.fc)}"></div><div><label>Descanso</label><input list="dl-desc" data-b="ejercicios.${i}.desc" value="${esc(e.desc)}"></div></div>
+  <div class="row between" style="margin-top:6px"><div class="xs" id="xh-${i}" style="color:var(--c4)">${esc(exLive(i))}</div><button class="btn sm ghost" data-a="exrest" data-i="${i}">⏱ Descanso</button></div>
   <div style="margin-top:6px"><input data-b="ejercicios.${i}.obs" value="${esc(e.obs)}" placeholder="Observaciones"></div></div>`;
 }
 const EJ_FASES=['Calentamiento','Parte principal','Vuelta a la calma'];
@@ -1209,6 +1446,8 @@ function mSesion(){
   <div><label>Esfuerzo de la sesión (RPE 1-10)</label><input type="number" min="1" max="10" step="0.5" inputmode="decimal" data-b="rpe" data-n value="${esc(d.rpe)}"></div>
   <div><label>Cargar plantilla</label><select id="tplsel"><option value="">Elegir…</option>${allPlantillas().map(p=>`<option value="${p.id}">${esc(p.nombre)}</option>`).join('')}</select></div></div>
   <datalist id="exlist">${exNames().map(n=>`<option value="${esc(n)}">`).join('')}</datalist>
+  <datalist id="dl-rpe">${[3,4,5,6,7,8,9,10].map(n=>`<option value="${n}">${borgName(n)}</option>`).join('')}</datalist><datalist id="dl-rm">${[50,60,65,70,75,80,85,90,95].map(n=>`<option value="${n}">`).join('')}</datalist><datalist id="dl-fc">${['50-60','60-70','70-80','80-90','90-100'].map(n=>`<option value="${n}">`).join('')}</datalist><datalist id="dl-desc">${['30 s','45 s','60 s','90 s','2 min','3 min','5 min','Activo 60 s'].map(n=>`<option value="${n}">`).join('')}</datalist>
+  <div class="row" style="margin:4px 0"><button class="btn sm" data-a="qguide">${ui.qg?'Ocultar guía rápida':'📋 Guía rápida: Borg, % RM, descansos'}</button></div>${ui.qg?`<div class="card">${borgHTML()}<h3 style="margin:14px 0 4px">Descansos entre series</h3><table>${REST_SETS.map(r=>`<tr><td><b>${r[0]}</b><div class="xs mut">${r[1]}</div></td><td>${r[2]}</td></tr>`).join('')}</table><div class="xs mut" style="margin-top:6px">% RM: fuerza ≥85% · hipertrofia 67-85% · resistencia ≤67%.</div></div>`:''}
   <div id="exs">${d.ejercicios.map(exCard).join('')||'<div class="empty">Carga una plantilla o agrega ejercicios.</div>'}</div>
   <div class="row"><button class="btn" data-a="addex">+ Ejercicio</button><button class="btn" data-a="savetpl">Guardar como plantilla</button></div>
   <div style="margin-top:10px"><label>Observaciones de la sesión</label><textarea data-b="notas">${esc(d.notas)}</textarea></div>
@@ -1281,10 +1520,10 @@ function renderModal(){
 function render(force){
   if(ui.modal && !force) return;
   const app=$('#app'); const ov=$('#overlay');
-  const tabs=[['hoy','Hoy'],['clientes','Clientes'],['asistencia','Asistencia'],['tests','Tests'],['ajustes','Ajustes']];
+  const tabs=[['hoy','Hoy'],['clientes','Clientes'],['asistencia','Asistencia'],['tests','Tests'],['guias','Guías'],['ajustes','Ajustes']];
   let v;
   if(ui.tab==='clientes') v=ui.cid?vClient():vClientes();
-  else v=({hoy:vHoy,asistencia:vAsistencia,tests:vTests,ajustes:vAjustes}[ui.tab]||vHoy)();
+  else v=({hoy:vHoy,asistencia:vAsistencia,tests:vTests,guias:vGuias,ajustes:vAjustes}[ui.tab]||vHoy)();
   let banner='';
   if(mode==='local'){ const nCl=Object.keys(S.clientes).length; const ag=backupAge(); banner=nCl&&ag>=7?`<div class="banner ptr" data-a="tab" data-v="ajustes">${metaGet().lastBackup?'Hace '+ag+' días que no guardas un respaldo.':'Aún no has guardado un respaldo de tus datos.'} Toca para respaldar.</div>`:''; }
   if(ui.slow) banner+=`<div class="banner">No se pudo conectar con la base de datos todavía. Lo que ves puede estar desactualizado.</div>`;
@@ -1295,6 +1534,7 @@ function render(force){
   if(ui.modal){ ov.innerHTML=renderModal(); ov.classList.add('on'); document.body.classList.add('lock'); derive(); }
   else { ov.innerHTML=''; ov.classList.remove('on'); document.body.classList.remove('lock'); }
   if(!force) window.scrollTo(0,keepScroll);
+  try{ guiasInit(); }catch(e){}
 }
 function openModal(type,d){ ui.modal=type; ui.d=d; ui.confirm=null; const ov=$('#overlay'); ov.classList.remove('opening'); render(true); void ov.offsetWidth; ov.classList.add('opening'); clearTimeout(openModal._t); openModal._t=setTimeout(()=>ov.classList.remove('opening'),450); ov.scrollTop=0; }
 function closeModal(){ ui.modal=null; ui.d=null; ui.confirm=null; render(true); }
@@ -1347,6 +1587,12 @@ document.addEventListener('visibilitychange',()=>{ const v=document.querySelecto
 document.addEventListener('click',e=>{
   const el=e.target.closest('[data-a]'); if(!el) return; const a=el.dataset.a; const id=el.dataset.id; const v=el.dataset.v;
   switch(a){
+    case 'gsub': ui.gsub=v; render(); break;
+    case 'reststart': restStart(Number(v)); break;
+    case 'restcustom': restStart(restParse((document.getElementById('rest_c')||{}).value+' s')); break;
+    case 'reststop': restStop(); break;
+    case 'exrest': { const i=Number(el.dataset.i); const s2=restParse(ui.d&&ui.d.ejercicios[i]&&ui.d.ejercicios[i].desc)||90; restStart(s2); break; }
+    case 'qguide': ui.qg=!ui.qg; render(true); break;
     case 'tab': ui.tab=v; ui.cid=null; ui.confirm=null; render(); window.scrollTo(0,0); break;
     case 'client': ui.tab='clientes'; ui.cid=id; ui.sub='resumen'; ui.confirm=null; render(); window.scrollTo(0,0); break;
     case 'back': ui.cid=null; render(); break;
@@ -1425,6 +1671,7 @@ document.addEventListener('click',e=>{
     case 'objm': { const mid=id+'_'+ui.month; const d=clone(S.metas[mid]||{cid:id,mes:ui.month,habitos:HABITOS_BASE.slice(),obj:OBJ_MES_BASE.map(t=>({t,ok:null})),d:{}}); const o=d.obj[+el.dataset.i]; const nv=v==='1'; o.ok=o.ok===nv?null:nv; put('metas',mid,d); break; }
     /* ajustes */
     case 'seed': seedAll(); break;
+    case 'fbcfg': case 'fbcfgclr': case 'fbin': case 'fbup': case 'fbreset': case 'fbsync': case 'fbout': case 'fbrules': cloudAction(a,el); break;
     case 'exportf': exportFile(); break;
     case 'importf': { const f=document.getElementById('impf'); if(f) f.click(); break; }
     case 'backup': { const txt=backupText(); metaSet({lastBackup:Date.now()}); const done=()=>toast('Respaldo copiado'); try{ navigator.clipboard.writeText(txt).then(done,()=>fallbackCopy(txt)); }catch(err){ fallbackCopy(txt); } break; }
