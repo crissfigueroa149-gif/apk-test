@@ -1131,7 +1131,10 @@ function inviteStr(code){ return 'ENT-'+btoa(JSON.stringify({a:CL.cfg.apiKey,p:C
 function sApp(c){
   const a=appOf(S.clientes[c.id]); const mes=ui.am||ymd(new Date()).slice(0,7); const sel=ui.ad||'';
   const cloudOk=!dbh&&fbOn()&&CL.user; let h='';
-  if(!cloudOk) return `<div class="card"><h3>App del alumno</h3><div class="sm mut" style="margin:6px 0">Para que ${esc(c.nombre)} tenga su propia app necesitas la cuenta en la nube (Ajustes → Cuenta y nube) con sesión iniciada en la APK.</div></div>`;
+  if(!cloudOk){ const ok1=!dbh&&fbOn(), ok2=!!CL.user;
+    return `<div class="card"><h3>Dar acceso de app a ${esc(c.nombre)}</h3><div class="sm mut" style="margin:6px 0 8px">El código aparece cuando tu cuenta en la nube está lista. Te falta:</div>
+    <div class="sm" style="line-height:1.8">${dbh?'❌ Estás en la versión web: usa la <b>APK</b> instalada en el teléfono.<br>':''}${ok1?'✅':'❌'} 1. Guardar la clave de API y el ID del proyecto de Firebase<br>${ok2?'✅':'❌'} 2. Crear tu cuenta o iniciar sesión (correo y clave)<br>⬜ 3. Pegar en Firebase las reglas nuevas (botón «Reglas»)</div>
+    <button class="btn pri" style="margin-top:10px" data-a="tab" data-v="ajustes">Ir a Ajustes → Cuenta y nube</button></div>`; }
   const st=TA[c.id]; const linked=!!a.sid;
   h+=`<div class="card"><div class="row between"><h3>Acceso del alumno</h3><span class="chip ${linked?'ok':a.code?'warn':'gr'}">${linked?'Vinculado':a.code?'Invitación enviada':'Sin invitar'}</span></div>`;
   if(!a.code) h+=`<div class="sm mut" style="margin:6px 0 10px">Crea una invitación: el alumno la pega en la app (modo Alumnos), elige su correo y clave y queda conectado a ti.</div><button class="btn pri" data-x="inv" data-id="${c.id}">Crear invitación</button>`;
@@ -1495,6 +1498,7 @@ function vClient(){
 }
 
 function sResumen(c){
+  const _ap=`<div class="card" style="margin-top:12px"><div class="row between"><div><b>📲 App del alumno</b><div class="xs mut">Código de invitación, rutinas, recordatorios y calendario</div></div><button class="btn pri sm" data-a="sub" data-v="app">Abrir</button></div></div>`;
   const meds=ofC('mediciones',c.id).sort((a,b)=>a.fecha.localeCompare(b.fecha));
   const m=meds[meds.length-1], m0=meds[0];
   const tests=ofC('tests',c.id).sort((a,b)=>a.fecha.localeCompare(b.fecha));
@@ -1517,6 +1521,7 @@ function sResumen(c){
   if(c.notas) h+=`<div class="card"><h3>Notas / anamnesis</h3><div class="sm" style="white-space:pre-wrap;margin-top:6px">${esc(c.notas)}</div></div>`;
   h+=`<div class="card"><div class="row between"><div><h3>Plan contratado</h3><div class="sm mut">${num(c.clases)!=null?c.clases+' clases':'Sin cantidad de clases definida'} ${c.valor?'· '+money(c.valor):''} ${c.inicio?'· inicio '+fdate(c.inicio):''}</div></div>
    <div>${confirmBtn('archive:'+c.id,'Archivar cliente','archive',c.id)}</div></div></div>`;
+  h+=_ap;
   h+=dataCard(c);
   return h;
 }
