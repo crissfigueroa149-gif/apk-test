@@ -1205,7 +1205,9 @@ function sApp(c){
   /* objetivos */
   h+=`<div class="card"><h3>Objetivos semanales</h3>${a.objetivos.map((o,i)=>`<div class="row between" style="padding:6px 0;border-top:1px solid var(--line)"><span class="sm">${esc(o.t)}</span><button class="btn sm ghost bad" data-x="objdel" data-id="${c.id}" data-i="${i}">✕</button></div>`).join('')||'<div class="sm mut" style="margin:6px 0">Sin objetivos todavía.</div>'}<div class="row" style="margin-top:8px"><input id="xobj" placeholder="Ej.: Entrenar 3 veces, 8 vasos de agua al día" class="grow"><button class="btn pri" data-x="objadd" data-id="${c.id}">Agregar</button></div></div>`;
   /* rutinas */
-  h+=`<div class="card"><h3>Rutinas del alumno</h3>${a.rutinas.map((r,i)=>`<div class="row between" style="padding:6px 0;border-top:1px solid var(--line)"><div><b class="sm">${esc(r.n)}</b><div class="xs mut">${r.ej.length} ejercicios</div></div><button class="btn sm ghost bad" data-x="rutdel" data-id="${c.id}" data-i="${i}">✕</button></div>`).join('')||'<div class="sm mut" style="margin:6px 0">Sin rutinas asignadas.</div>'}<div class="row" style="margin-top:8px"><select id="xrut" class="grow"><option value="">Elegir plantilla…</option>${allPlantillas().map(p=>`<option value="${p.id}">${esc(p.nombre)}</option>`).join('')}</select><button class="btn pri" data-x="rutadd" data-id="${c.id}">Asignar</button></div><div class="xs mut" style="margin-top:6px">Se copia la plantilla. Crea o edita plantillas desde una sesión («Guardar como plantilla»).</div></div>`;
+  { const H=mergeH(a.hechos,(st&&st.alumno||{}).hechos); const R=allRut(c.id);
+    h+=`<div class="card"><h3>Rutinas del alumno</h3>${R.map(r=>{ const pend=r.ej.map((e,j)=>[e,j]).filter(([e,j])=>!(H[r.id+'|'+j]&&!H[r.id+'|'+j].x)); return `<div style="padding:8px 0;border-top:1px solid var(--line)"><div class="row between"><div><b class="sm">${esc(r.n)}</b><div class="xs mut">${pend.length?pend.length+' por hacer de '+r.ej.length:'✅ Completa'}</div></div><button class="btn sm ghost bad" data-x="${r.mi!=null?'rutdel':'rutoc'}" data-id="${c.id}" data-i="${r.mi!=null?r.mi:''}" data-v="${r.id}">✕</button></div>${pend.map(([e,j])=>`<div class="row between" style="margin-top:6px"><span class="sm">${esc(e.n)}${e.s?' <span class="xs mut">· '+esc(e.s)+'</span>':''}</span><button class="btn sm" data-x="exdone" data-id="${c.id}" data-v="${r.id}" data-i="${j}">✓ Hecho</button></div>`).join('')}</div>`; }).join('')||'<div class="sm mut" style="margin:6px 0">Sin rutinas asignadas.</div>'}<div class="row" style="margin-top:8px"><select id="xrut" class="grow"><option value="">Elegir plantilla…</option>${allPlantillas().map(p=>`<option value="${p.id}">${esc(p.nombre)}</option>`).join('')}</select><button class="btn pri" data-x="rutadd" data-id="${c.id}">Asignar</button></div><div class="xs mut" style="margin-top:6px">Tus sesiones llegan solas como rutinas. ✕ las quita del alumno (el historial se conserva).</div></div>
+    <div class="card"><h3>Historial de ejercicios hechos</h3>${histHTML(H,'exundo','data-id="'+c.id+'"')}</div>`; }
   /* nutrición */
   h+=`<div class="card"><h3>Recomendaciones alimenticias</h3><textarea id="xnutri" data-xc="nutri" data-id="${c.id}" rows="5" placeholder="Ej.: Desayuno: avena con fruta. Proteína en cada comida…">${esc(a.nutri)}</textarea></div>`;
   /* recordatorios */
@@ -1241,6 +1243,11 @@ async function xPull(cid){
     const f=await dGet(CL,cloudSave,`students/${sid}/data/alumno`); TA[cid]={alumno:f?JSON.parse(gS(f.j)||'{}'):{},t:Date.now()}; render();
   }catch(e){ toast(apiErr(e)); }
 }
+function mergeH(p,q){ const o={...(p||{})}; Object.entries(q||{}).forEach(([k,v])=>{ if(!o[k]||v.t>o[k].t) o[k]=v; }); return o; }
+const hDone=H=>Object.entries(H).filter(([k,v])=>!v.x);
+function allRut(cid){ const a=appOf(S.clientes[cid]); const oc=a.ocultas||[]; return [...(a.rutinas||[]).map((r,i)=>({...r,mi:i})),...sesRut(cid).rutinas.filter(r=>!oc.includes(r.id))]; }
+function histHTML(H,undo,ex){ const L=hDone(H).sort((x,y)=>y[1].t-x[1].t); if(!L.length) return '<div class="sm mut" style="margin:6px 0">Aún no hay ejercicios completados.</div>';
+  return L.slice(0,60).map(([k,v])=>`<div class="row between" style="padding:6px 0;border-top:1px solid var(--line)"><div><b class="sm">✅ ${esc(v.n)}</b><div class="xs mut">${fdate(v.d)} · ${esc(v.r||'')}${v.s?' · '+esc(v.s):''}${v.by==='p'?' · marcado por el profesor':''}</div></div><button class="btn sm ghost" data-x="${undo}" ${ex} data-k="${esc(k)}">↩</button></div>`).join(''); }
 function sesRut(cid){
   const L=ofC('sesiones',cid).filter(s=>s.fecha).sort((x,y)=>y.fecha.localeCompare(x.fecha)).slice(0,8); const rutinas=[], dias={};
   L.forEach(s=>{ const ej=(s.ejercicios||[]).filter(e=>e.n).map(e=>{ const ser=(e.series||[]); const o=ser.map(z=>z.obj).filter(Boolean); let st=o.length?(o.every(z=>z===o[0])?o.length+' × '+o[0]:o.join(' · ')):ser.map(z=>(num(z.reps)?z.reps:'')+(num(z.lb)?'×'+z.lb+'lb':'')).filter(Boolean).join(' · ');
@@ -1260,7 +1267,7 @@ async function xPublish(cid,silent){
   const gs={}; Object.keys(S.clientes).forEach(id=>{ const b={}; ofC('tests',id).sort((x,y)=>x.fecha.localeCompare(y.fecha)).forEach(t=>{ b[t.tipo]=t; }); const cp={}; Object.values(b).forEach(t=>{ const T=testById(t.tipo), s=sc(t.res||{}); if(T&&s!=null) (cp[T.cap]=cp[T.cap]||[]).push(s); }); Object.entries(cp).forEach(([k,v])=>{ (gs[k]=gs[k]||[]).push(v.reduce((p,q)=>p+q,0)/v.length); }); });
   const grp={}; Object.entries(gs).forEach(([k,v])=>{ if(v.length>=3) grp[k]=Math.round(10*v.reduce((p,q)=>p+q,0)/v.length)/10; });
   const sr=sesRut(cid); const dias2={...sr.dias,...a.dias};
-  const plan={nombre:c.nombre.trim(),objetivos:a.objetivos,rutinas:[...(a.rutinas||[]),...sr.rutinas],nutri:a.nutri,dias:dias2,tnotas:a.tnotas,recs:a.recs,prog:{tests:tsx,meds,wk,cards,grp},u:Date.now()}; const G=gifsGet(); const up={...a.gifUp};
+  const plan={nombre:c.nombre.trim(),objetivos:a.objetivos,rutinas:[...(a.rutinas||[]),...sr.rutinas.filter(r=>!(a.ocultas||[]).includes(r.id))],hechos:a.hechos||{},nutri:a.nutri,dias:dias2,tnotas:a.tnotas,recs:a.recs,prog:{tests:tsx,meds,wk,cards,grp},u:Date.now()}; const G=gifsGet(); const up={...a.gifUp};
   try{
     for(const r of a.recs){ if(r.gif&&!up[r.gif]&&G[r.gif]){ await dCommit(CL,cloudSave,[dW(CL,`students/${a.sid}/data/g_${r.gif}`,{j:fS(G[r.gif]),u:fI(Date.now())})]); up[r.gif]=1; } }
     await dCommit(CL,cloudSave,[dW(CL,`students/${a.sid}/data/plan`,{j:fS(JSON.stringify(plan)),u:fI(plan.u)})]);
@@ -1284,6 +1291,9 @@ async function xAct(a,el){
     case 'objadd': { const t=g('xobj').trim(); if(!t) return; edit(x=>x.objetivos.push({id:uid(),t})); break; }
     case 'objdel': edit(x=>x.objetivos.splice(i,1)); break;
     case 'rutadd': { const p=allPlantillas().find(q=>q.id===g('xrut')); if(!p) return toast('Elige una plantilla'); edit(x=>x.rutinas.push({id:uid(),n:p.nombre,ej:p.ejercicios.map(e=>({n:e.n,fase:e.fase,s:(()=>{ const o=(e.series||[]).map(s=>s.obj).filter(Boolean); if(!o.length) return ''; return o.every(z=>z===o[0])?o.length+' × '+o[0]:o.join(' · '); })(),lb:e.lbObj||'',rpe:e.rpe||'',rm:e.rm||'',fc:e.fc||'',desc:e.desc||'',obs:e.obs||''}))})); toast('Rutina asignada'); break; }
+    case 'rutoc': edit(x=>{ x.ocultas=x.ocultas||[]; if(!x.ocultas.includes(v)) x.ocultas.push(v); }); toast('Rutina quitada'); break;
+    case 'exdone': { const r=allRut(id).find(q=>q.id===v); if(!r) return; const e=r.ej[i]; edit(x=>{ x.hechos=x.hechos||{}; x.hechos[v+'|'+i]={t:Date.now(),d:ymd(new Date()),r:r.n,n:e.n,s:e.s||'',by:'p'}; }); break; }
+    case 'exundo': { const k=el.dataset.k; const H=mergeH(appOf(S.clientes[id]).hechos,(TA[id]&&TA[id].alumno||{}).hechos); const o=H[k]; if(!o) return; edit(x=>{ x.hechos=x.hechos||{}; x.hechos[k]={...o,t:Date.now(),x:1}; }); break; }
     case 'rutdel': edit(x=>x.rutinas.splice(i,1)); break;
     case 'recadd': { const msg=g('xrm').trim(); const dias=[...document.querySelectorAll('.xrd:checked')].map(e=>Number(e.value)); if(!msg) return toast('Escribe el mensaje'); if(!dias.length) return toast('Elige al menos un día'); const gid=ui.xgif||''; ui.xgif=null; edit(x=>x.recs.push({id:uid(),h:g('xrh')||'08:00',dias,msg,gif:gid})); break; }
     case 'recdel': edit(x=>x.recs.splice(i,1)); break;
@@ -1302,7 +1312,7 @@ function autoPub(){
 }
 function planHash(cid){
   const c=S.clientes[cid], a=appOf(c); const tsx=ofC('tests',cid).map(t=>[t.id,t.fecha,valorOf(t),(t.res||{}).cat]), meds=ofC('mediciones',cid).map(m=>[m.id,m.fecha,m.peso,m.masaMusc,m.masaGrasa]), ses=ofC('sesiones',cid).map(s=>s.fecha);
-  return hsh(JSON.stringify([c.nombre,a.objetivos,a.rutinas,a.nutri,a.dias,a.tnotas,a.recs,tsx,meds,ses,hsh(JSON.stringify(ofC('sesiones',cid)))]));
+  return hsh(JSON.stringify([c.nombre,a.objetivos,a.rutinas,a.nutri,a.dias,a.tnotas,a.recs,a.hechos,a.ocultas,tsx,meds,ses,hsh(JSON.stringify(ofC('sesiones',cid)))]));
 }
 { const _pl=persistLocal; persistLocal=function(){ _pl.apply(this,arguments); try{ autoPub(); }catch(e){} }; }
 /* ===================== ALUMNO ===================== */
@@ -1461,9 +1471,11 @@ function aluRender(){
     <div class="row" style="margin-top:8px"><input id="a_nt" class="grow" placeholder="Agregar una nota para este día"><button class="btn pri" data-x="anote">Agregar</button></div></div>`;
   }
   if(AU.tab==='rut'){
-    const R=P.rutinas||[]; const r=R.find(x=>x.id===AU.rut);
-    if(!r) h+=R.map(x=>`<button class="card rutb" data-x="arut" data-v="${x.id}"><b>${esc(x.n)}</b><div class="xs mut">${x.ej.length} ejercicios · toca para ver</div></button>`).join('')||'<div class="empty">Tu profesor aún no te asignó rutinas.</div>';
-    else h+=`<button class="btn ghost sm" data-x="arut" data-v="" style="padding-left:0">← Rutinas</button><h2 style="margin:4px 0 8px">${esc(r.n)}</h2>${r.ej.map(e=>{ const th=exAnim(e.n,{size:56,follow:1}); return `<div class="card"><div class="row">${th?`<div class="exth" style="cursor:default">${th}</div>`:''}<div class="grow"><b>${esc(e.n)}</b><div class="xs mut">${esc(e.fase||'')}</div></div></div><div class="sm" style="margin-top:6px">${[e.s&&'Series: '+e.s,e.lb&&'Carga: '+e.lb+' lb',e.rpe&&'RPE '+e.rpe,e.rm&&e.rm+'% RM',e.fc&&e.fc+' FC máx',e.desc&&'Descanso '+e.desc].filter(Boolean).map(esc).join(' · ')}</div>${e.obs?`<div class="xs mut" style="margin-top:4px">${esc(e.obs)}</div>`:''}</div>`; }).join('')}`;
+    const H=mergeH(P.hechos,AL.hechos); const isD=(rid,j)=>{ const o=H[rid+'|'+j]; return !!(o&&!o.x); };
+    const R=(P.rutinas||[]).filter(x=>x.ej.some((e,j)=>!isD(x.id,j))); const r=R.find(x=>x.id===AU.rut);
+    if(!r) h+=R.map(x=>{ const n=x.ej.filter((e,j)=>!isD(x.id,j)).length; return `<button class="card rutb" data-x="arut" data-v="${x.id}"><b>${esc(x.n)}</b><div class="xs mut">${n} por hacer · toca para ver</div></button>`; }).join('')||'<div class="empty">No tienes rutinas pendientes 🎉</div>';
+    else h+=`<button class="btn ghost sm" data-x="arut" data-v="" style="padding-left:0">← Rutinas</button><h2 style="margin:4px 0 8px">${esc(r.n)}</h2>${r.ej.map((e,j)=>{ if(isD(r.id,j)) return ''; const th=exAnim(e.n,{size:56,follow:1}); return `<div class="card"><div class="row">${th?`<div class="exth" style="cursor:default">${th}</div>`:''}<div class="grow"><b>${esc(e.n)}</b><div class="xs mut">${esc(e.fase||'')}</div></div></div><div class="sm" style="margin-top:6px">${[e.s&&'Series: '+e.s,e.lb&&'Carga: '+e.lb+' lb',e.rpe&&'RPE '+e.rpe,e.rm&&e.rm+'% RM',e.fc&&e.fc+' FC máx',e.desc&&'Descanso '+e.desc].filter(Boolean).map(esc).join(' · ')}</div>${e.obs?`<div class="xs mut" style="margin-top:4px">${esc(e.obs)}</div>`:''}<button class="btn pri" style="margin-top:8px;width:100%" data-x="aex" data-v="${r.id}" data-i="${j}">✓ Ya lo hice</button></div>`; }).join('')}`;
+    if(!r) h+=`<div class="card" style="margin-top:12px"><h3>Historial</h3>${histHTML(H,'aexundo','')}</div>`;
   }
   if(AU.tab==='prog'){
     h+=resumenCard(P)+capCards(P,true); const CD=(((P.prog||{}).cards)||[]); if(CD.length) h+=`<div style="margin:14px 0 4px"><h2>Tus tests</h2><div class="sm mut">Cada tarjeta te explica tu resultado en simple.</div></div>`+CD.map(testCard).join(''); const O=ptOpts(P);
@@ -1475,7 +1487,7 @@ function aluRender(){
     h+=`<div class="card"><h3>Mis datos personales</h3><div class="f">${F('nombre','Nombre')}${F('edad','Edad','number')}${F('peso','Peso (kg)','number')}${F('estatura','Estatura (cm)','number')}${F('tel','Teléfono','tel')}</div><div class="xs mut" style="margin-top:6px">Tu profesor ve estos datos. Se guardan al salir del campo.</div></div><div class="card"><div class="sm">Cuenta: <b>${esc(ST.user.email||'')}</b></div><button class="btn bad" style="margin-top:8px" data-x="aout">Cerrar sesión</button></div>`; }
   app.innerHTML=h+`<nav class="nav">${tabs.map(t=>`<button class="${AU.tab===t[0]?'on':''}" data-x="atab" data-v="${t[0]}">${t[2]}<span>${t[1]}</span></button>`).join('')}</nav><button class="modebtn" data-x="role" data-v="">⇄ Modo</button>`;
 }
-function aluAct(a,v){
+function aluAct(a,v,el){
   const g=x=>{ const e=document.getElementById(x); return e?e.value:''; };
   switch(a){
     case 'aauth': aluAuth(v); break;
@@ -1489,6 +1501,8 @@ function aluAct(a,v){
     case 'acd': AU.sel=v; render(true); break;
     case 'anote': { const t=g('a_nt').trim(); if(!t) return; aluSet(A=>{ A.notas=A.notas||{}; (A.notas[AU.sel]=A.notas[AU.sel]||[]).push({id:uid(),t,ts:Date.now()}); }); break; }
     case 'anotedel': aluSet(A=>{ A.notas[AU.sel]=(A.notas[AU.sel]||[]).filter(n=>n.id!==v); if(!A.notas[AU.sel].length) delete A.notas[AU.sel]; }); break;
+    case 'aex': { const rr=((ST.plan||{}).rutinas||[]).find(q=>q.id===v); if(!rr) break; const j=Number(el.dataset.i), e=rr.ej[j]; aluSet(A=>{ A.hechos=A.hechos||{}; A.hechos[v+'|'+j]={t:Date.now(),d:ymd(new Date()),r:rr.n,n:e.n,s:e.s||'',by:'a'}; }); break; }
+    case 'aexundo': { const k=el.dataset.k, o=mergeH((ST.plan||{}).hechos,ST.alumno.hechos)[k]; if(!o) break; aluSet(A=>{ A.hechos=A.hechos||{}; A.hechos[k]={...o,t:Date.now(),x:1}; }); break; }
     case 'arut': AU.rut=v||null; render(true); window.scrollTo(0,0); break;
     case 'aout': ST={alumno:{}}; try{ localStorage.removeItem(LS_ST); }catch(e){} AU.gif={}; render(true); break;
   }
@@ -1499,7 +1513,7 @@ document.addEventListener('click',e=>{
   if(a==='role'){ setRole(v); return; }
   if(/^pin/.test(a)) return pinAct(a);
   if(a==='adin') return adminAuth('in'); if(a==='adup') return adminAuth('up');
-  if(['aauth','acap','apt','atsel','atab','async','amood','acm','acd','anote','anotedel','arut','aout'].includes(a)) return aluAct(a,v);
+  if(['aauth','acap','apt','atsel','atab','async','amood','acm','acd','anote','anotedel','arut','aout','aex','aexundo'].includes(a)) return aluAct(a,v,el);
   xAct(a,el);
 });
 document.addEventListener('change',e=>{
