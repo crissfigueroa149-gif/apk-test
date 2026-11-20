@@ -1062,14 +1062,38 @@ if(typeof CL!=='undefined'&&!(CL.cfg&&CL.cfg.apiKey)&&FB_DEFAULT.apiKey) CL.cfg=
 const codeCreds=c=>{ c=String(c||'').toLowerCase().replace(/[^a-z0-9]/g,''); return {email:c+'@alumnos.energy',pass:'ea'+c+'x'}; };
 const userEmail=u=>{ u=String(u||'').trim(); if(u.includes('@')) return u.toLowerCase(); return u.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9._-]/g,'')+'@alumnos.energy'; };
 let ROLE=''; try{ ROLE=localStorage.getItem('entrenabilidad_role')||''; }catch(e){}
-function setRole(r){ ROLE=r; try{ if(r) localStorage.setItem('entrenabilidad_role',r); else localStorage.removeItem('entrenabilidad_role'); }catch(e){} ui.modal=null; ui.d=null; render(true); window.scrollTo(0,0); if(r==='alumno') aluStart(); }
+/* ---------- Clave del modo Profesor ---------- */
+const PINKEY='entrenabilidad_pin'; let PIN_OK=false;
+const pinGet=()=>{ try{ return JSON.parse(localStorage.getItem(PINKEY)||'null'); }catch(e){ return null; } };
+async function pinHash(p,salt){ const s=salt+':'+p; try{ const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s)); return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join(''); }catch(e){ return 'h'+hsh(s); } }
+function renderPin(msg){
+  const app=$('#app'); $('#overlay').innerHTML=''; $('#overlay').classList.remove('on'); document.body.classList.remove('lock'); const has=!!pinGet(); const f=ui.pinForgot;
+  app.innerHTML=`<div class="rolebox"><div class="rolehd"><div class="rolelogo">Profesor</div><h1>${f?'Recuperar acceso':has?'Ingresa tu clave':'Crea tu clave'}</h1><div class="sub">${f?'Confirma con la clave de tu cuenta en la nube':has?'Protege el modo Profesor':'Los alumnos no podrán entrar a este modo'}</div></div>
+  <div class="card">${f?`<label>Clave de tu cuenta (${esc((CL.user&&CL.user.email)||'')})</label><input id="p_cl" type="password"><button class="btn pri" style="margin-top:10px" data-x="pinreset">Verificar y borrar mi clave</button><button class="btn ghost" style="margin-top:6px" data-x="pinback">Cancelar</button>`:
+  has?`<label>Clave de profesor</label><input id="p_pin" type="password" inputmode="numeric" autocomplete="off" style="font-size:22px;letter-spacing:.2em"><button class="btn pri" style="margin-top:10px" data-x="pinok">Entrar</button><button class="btn ghost" style="margin-top:6px" data-x="pinforgot">Olvidé mi clave</button>`:
+  `<label>Nueva clave (mín. 4 caracteres)</label><input id="p_n1" type="password" autocomplete="off"><label style="margin-top:6px">Repite la clave</label><input id="p_n2" type="password" autocomplete="off"><button class="btn pri" style="margin-top:10px" data-x="pinset">Guardar y entrar</button>`}
+  ${msg?`<div class="xs" style="color:#ff5f7e;margin-top:8px">${esc(msg)}</div>`:''}</div><button class="btn ghost" data-x="role" data-v="">← Volver al inicio</button></div>`;
+  const i=app.querySelector('input'); if(i) setTimeout(()=>i.focus(),50);
+}
+async function pinAct(a){
+  const g=x=>{ const e=document.getElementById(x); return e?e.value:''; };
+  if(a==='pinset'){ const n1=g('p_n1'), n2=g('p_n2'); if(n1.length<4) return renderPin('La clave debe tener al menos 4 caracteres'); if(n1!==n2) return renderPin('Las claves no coinciden'); const salt=uid(); localStorage.setItem(PINKEY,JSON.stringify({s:salt,h:await pinHash(n1,salt)})); PIN_OK=true; render(true); toast('Clave guardada'); }
+  if(a==='pinok'){ const p=pinGet(); if(p&&await pinHash(g('p_pin'),p.s)===p.h){ PIN_OK=true; render(true); } else renderPin('Clave incorrecta'); }
+  if(a==='pinforgot'){ ui.pinForgot=true; renderPin(); }
+  if(a==='pinback'){ ui.pinForgot=false; renderPin(); }
+  if(a==='pinreset'){ if(!(CL.user&&CL.cfg)) return renderPin('Sin cuenta en la nube no se puede recuperar. Reinstala la app (se pierden los datos locales).');
+    try{ await aAuth({cfg:CL.cfg},'signInWithPassword',{email:CL.user.email,password:g('p_cl'),returnSecureToken:true}); localStorage.removeItem(PINKEY); ui.pinForgot=false; renderPin(); toast('Crea una clave nueva'); }catch(e){ renderPin('La clave de la cuenta no es correcta'); } }
+  if(a==='pinchg'){ const p=pinGet(); const o=g('pc_o'), n=g('pc_n'); if(!p||await pinHash(o,p.s)!==p.h) return toast('La clave actual no es correcta'); if(n.length<4) return toast('La nueva clave debe tener al menos 4 caracteres'); const salt=uid(); localStorage.setItem(PINKEY,JSON.stringify({s:salt,h:await pinHash(n,salt)})); toast('Clave cambiada'); render(true); }
+}
+document.addEventListener('keydown',e=>{ if(e.key==='Enter'&&e.target&&e.target.id&&/^p_/.test(e.target.id)){ const b=document.querySelector('.rolebox .btn.pri'); if(b) b.click(); } });
+function setRole(r){ if(r!=='profe') PIN_OK=false; ui.pinForgot=false; ROLE=r; try{ if(r) localStorage.setItem('entrenabilidad_role',r); else localStorage.removeItem('entrenabilidad_role'); }catch(e){} ui.modal=null; ui.d=null; render(true); window.scrollTo(0,0); if(r==='alumno') aluStart(); }
 function renderRole(){
   const app=$('#app'); $('#overlay').innerHTML=''; $('#overlay').classList.remove('on'); document.body.classList.remove('lock');
   app.innerHTML=`<div class="rolebox"><div class="rolehd"><div class="rolelogo">Energy Alameda</div><h1>Entrenabilidad</h1><div class="sub">¿Cómo quieres entrar?</div></div>
   <button class="rolebtn r1" data-x="role" data-v="profe"><b>Profesor</b><span>Planifica, evalúa y edita el entrenamiento de tus alumnos</span></button>
   <button class="rolebtn r2" data-x="role" data-v="alumno"><b>Alumnos</b><span>Tu rutina, calendario, recordatorios y notas</span></button></div>`;
 }
-function roleCard(){ return `<div class="card"><h3>Modo de la app</h3><div class="sm mut" style="margin:6px 0 10px">Estás en modo <b>Profesor</b>. Puedes volver a la pantalla de inicio para entrar como alumno.</div><button class="btn" data-x="role" data-v="">Cambiar de modo</button></div>`; }
+function roleCard(){ return `<div class="card"><h3>Clave del modo Profesor</h3><div class="f"><div><label>Clave actual</label><input id="pc_o" type="password"></div><div><label>Clave nueva</label><input id="pc_n" type="password"></div></div><button class="btn" style="margin-top:8px" data-x="pinchg">Cambiar clave</button></div><div class="card"><h3>Modo de la app</h3><div class="sm mut" style="margin:6px 0 10px">Estás en modo <b>Profesor</b>. Puedes volver a la pantalla de inicio para entrar como alumno.</div><button class="btn" data-x="role" data-v="">Cambiar de modo</button></div>`; }
 
 /* ---------- API Firestore genérica (profesor = CL, alumno = ST) ---------- */
 const FSB=s=>`https://firestore.googleapis.com/v1/projects/${s.cfg.projectId}/databases/(default)/documents`;
@@ -1321,6 +1345,7 @@ function aluAct(a,v){
 document.addEventListener('click',e=>{
   const el=e.target.closest('[data-x]'); if(!el||el.tagName==='INPUT'&&el.type==='checkbox') return; const a=el.dataset.x, v=el.dataset.v;
   if(a==='role'){ setRole(v); return; }
+  if(/^pin/.test(a)) return pinAct(a);
   if(['aauth','atab','async','amood','acm','acd','anote','anotedel','arut','aout'].includes(a)) return aluAct(a,v);
   xAct(a,el);
 });
@@ -1818,6 +1843,7 @@ function renderModal(){
 function render(force){
   if(ROLE==='alumno'){ aluRender(); return; }
   if(ROLE!=='profe'){ renderRole(); return; }
+  if(!PIN_OK){ renderPin(); return; }
   if(ui.modal && !force) return;
   const app=$('#app'); const ov=$('#overlay');
   const tabs=[['hoy','Hoy'],['clientes','Clientes'],['asistencia','Asistencia'],['tests','Tests'],['guias','Guías'],['ajustes','Ajustes']];
