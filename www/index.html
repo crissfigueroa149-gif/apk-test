@@ -32,6 +32,20 @@ h1{font-size:24px;background:var(--grad);-webkit-background-clip:text;background
 .nav button span{font-size:11px}
 #rtpill{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(74px + env(safe-area-inset-bottom));z-index:60;background:linear-gradient(135deg,#ff9a3c,#ff5fa2);color:#1a0b2e;border-radius:999px;padding:10px 18px;display:none;align-items:center;gap:10px;box-shadow:0 6px 24px rgba(0,0,0,.45);overflow:hidden;cursor:pointer;font-size:16px}
 #rtpill i{position:absolute;left:0;bottom:0;height:3px;background:#1a0b2e;opacity:.5}
+.rolebox{max-width:480px;margin:0 auto;padding:36px 18px;display:flex;flex-direction:column;gap:14px;min-height:100vh;justify-content:center}
+.rolehd{text-align:center;margin-bottom:8px}.rolelogo{letter-spacing:.2em;text-transform:uppercase;font-size:12px;color:var(--acc);font-weight:700}
+.rolebtn{border:0;border-radius:22px;padding:26px 22px;text-align:left;color:#1a0b2e;cursor:pointer;font:inherit;display:flex;flex-direction:column;gap:6px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+.rolebtn b{font-size:26px}.rolebtn span{font-size:14px;opacity:.85}.rolebtn:active{transform:scale(.98)}
+.r1{background:linear-gradient(135deg,#ff9a3c,#ff5fa2)}.r2{background:linear-gradient(135deg,#2ee6c5,#3fa9ff)}
+.cal7{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-top:8px}.cal7 .ch{text-align:center;font-size:11px;color:var(--mut);font-weight:700}
+.cd{background:var(--card-s);border:1px solid var(--line);border-radius:10px;padding:4px 0;min-height:52px;color:var(--ink);font:inherit;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:0}
+.cd b{font-size:13px}.cd span{font-size:11px;line-height:1.1;min-height:12px}.cd.tr{background:rgba(255,154,60,.18);border-color:#ff9a3c}.cd.today b{color:var(--acc);text-decoration:underline}.cd.sel{outline:2px solid #2ee6c5}
+.note{background:var(--card-s);border-radius:10px;padding:8px 10px;margin-top:6px;font-size:14px;align-items:center;gap:8px}
+.amedia{display:block;max-width:100%;max-height:220px;border-radius:12px;margin-top:6px}.amedia.sm{max-height:90px}
+.xinv{width:100%;font-size:11px;height:70px}.xdchip{display:inline-flex}.xdchip input{display:none}.xdchip span{border:1px solid var(--line);border-radius:999px;padding:6px 11px;font-size:13px;cursor:pointer;color:var(--mut)}.xdchip input:checked+span{background:#ff9a3c;color:#1a0b2e;border-color:#ff9a3c;font-weight:700}
+.obj{display:flex;gap:10px;align-items:center;padding:10px 0;border-top:1px solid var(--line);font-size:15px}.obj input{width:22px;height:22px;flex:none}.obj.on span{text-decoration:line-through;opacity:.6}
+.moods{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-top:8px}.mood{background:var(--card-s);border:1px solid var(--line);border-radius:12px;padding:8px 0;color:var(--ink);font:inherit;cursor:pointer;display:flex;flex-direction:column;align-items:center}.mood span{font-size:26px}.mood small{font-size:10px;color:var(--mut)}.mood.on{background:rgba(46,230,197,.2);border-color:#2ee6c5}
+.rutb{display:block;width:100%;text-align:left;color:var(--ink);font:inherit;cursor:pointer}
 .nav{position:fixed;left:0;right:0;bottom:0;background:rgba(14,8,30,.96);border-top:1px solid var(--line);display:flex;justify-content:center;z-index:5;padding-bottom:env(safe-area-inset-bottom)}
 .nav button{flex:1;max-width:180px;background:none;border:0;padding:10px 4px 9px;color:var(--mut);font:inherit;font-size:12px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px}
 .nav button svg{width:22px;height:22px}
@@ -899,7 +913,7 @@ async function cloudAuth(kind){
     fbSession(j); cloudSave(); toast(kind==='up'?'Cuenta creada':'Sesión iniciada'); render(); syncNow(true);
   }catch(e){ toast(cloudErr(e)); }
 }
-const FB_RULES="rules_version = '2';\nservice cloud.firestore {\n  match /databases/{database}/documents {\n    match /users/{uid}/{document=**} {\n      allow read, write: if request.auth != null && request.auth.uid == uid;\n    }\n  }\n}";
+const FB_RULES="rules_version = '2';\nservice cloud.firestore {\n  match /databases/{db}/documents {\n    match /users/{uid}/{document=**} {\n      allow read, write: if request.auth != null && request.auth.uid == uid;\n    }\n    match /links/{code} {\n      allow get: if request.auth != null;\n      allow create, update: if request.auth != null && request.resource.data.trainerUid == request.auth.uid;\n      allow delete: if request.auth != null && resource.data.trainerUid == request.auth.uid;\n    }\n    match /students/{sid} {\n      allow get: if request.auth != null && (request.auth.uid == sid || resource.data.trainerUid == request.auth.uid);\n      allow list: if request.auth != null && resource.data.trainerUid == request.auth.uid;\n      allow create: if request.auth != null && request.auth.uid == sid\n        && get(/databases/$(db)/documents/links/$(request.resource.data.code)).data.trainerUid == request.resource.data.trainerUid;\n      allow update: if request.auth != null && request.auth.uid == sid && request.resource.data.trainerUid == resource.data.trainerUid;\n      allow delete: if request.auth != null && resource.data.trainerUid == request.auth.uid;\n      match /data/{d} {\n        allow read: if request.auth != null && (request.auth.uid == sid\n          || get(/databases/$(db)/documents/students/$(sid)).data.trainerUid == request.auth.uid);\n        allow write: if request.auth != null && ((d == 'alumno' && request.auth.uid == sid)\n          || (d != 'alumno' && get(/databases/$(db)/documents/students/$(sid)).data.trainerUid == request.auth.uid));\n      }\n    }\n  }\n}";
 function cloudCard(){
   if(dbh) return '';
   const u=CL.user, st=CL.status||{}; const pend=Object.keys(CL.dirty||{}).length;
@@ -1040,6 +1054,279 @@ function exLive(i){
   return out.join(' · ');
 }
 document.addEventListener('input',e=>{ const p=e.target&&e.target.dataset&&e.target.dataset.b; const m=p&&p.match(/^ejercicios\.(\d+)\.(rpe|rm|fc|desc|n)$/); if(m) setTimeout(()=>{ const h=document.getElementById('xh-'+m[1]); if(h) h.textContent=exLive(Number(m[1])); },0); });
+
+/* ============ Modo Profesor / Alumnos ============ */
+let ROLE=''; try{ ROLE=localStorage.getItem('entrenabilidad_role')||''; }catch(e){}
+function setRole(r){ ROLE=r; try{ if(r) localStorage.setItem('entrenabilidad_role',r); else localStorage.removeItem('entrenabilidad_role'); }catch(e){} ui.modal=null; ui.d=null; render(true); window.scrollTo(0,0); if(r==='alumno') aluStart(); }
+function renderRole(){
+  const app=$('#app'); $('#overlay').innerHTML=''; $('#overlay').classList.remove('on'); document.body.classList.remove('lock');
+  app.innerHTML=`<div class="rolebox"><div class="rolehd"><div class="rolelogo">Energy Alameda</div><h1>Entrenabilidad</h1><div class="sub">¿Cómo quieres entrar?</div></div>
+  <button class="rolebtn r1" data-x="role" data-v="profe"><b>Profesor</b><span>Planifica, evalúa y edita el entrenamiento de tus alumnos</span></button>
+  <button class="rolebtn r2" data-x="role" data-v="alumno"><b>Alumnos</b><span>Tu rutina, calendario, recordatorios y notas</span></button></div>`;
+}
+function roleCard(){ return `<div class="card"><h3>Modo de la app</h3><div class="sm mut" style="margin:6px 0 10px">Estás en modo <b>Profesor</b>. Puedes volver a la pantalla de inicio para entrar como alumno.</div><button class="btn" data-x="role" data-v="">Cambiar de modo</button></div>`; }
+
+/* ---------- API Firestore genérica (profesor = CL, alumno = ST) ---------- */
+const FSB=s=>`https://firestore.googleapis.com/v1/projects/${s.cfg.projectId}/databases/(default)/documents`;
+const fS=v=>({stringValue:String(v==null?'':v)}), fI=v=>({integerValue:String(v)}), gS=f=>f&&f.stringValue!==undefined?f.stringValue:'', gI=f=>f&&f.integerValue!==undefined?Number(f.integerValue):0;
+async function aAuth(s,path,body){
+  const r=await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:${path}?key=${encodeURIComponent(s.cfg.apiKey)}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  const j=await r.json().catch(()=>({})); if(!r.ok) throw new Error((j.error&&j.error.message)||('HTTP '+r.status)); return j;
+}
+function aSess(s,sv,j){ const u=s.user||{}; s.user={email:j.email||u.email,uid:j.localId||j.user_id||u.uid,refresh:j.refreshToken||j.refresh_token||u.refresh,idToken:j.idToken||j.id_token,exp:Date.now()+(Number(j.expiresIn||j.expires_in)||3600)*1000-60000}; sv(); }
+async function aTok(s,sv){
+  if(!s.user) throw new Error('NO_SESSION'); if(s.user.idToken&&s.user.exp>Date.now()) return s.user.idToken;
+  const r=await fetch(`https://securetoken.googleapis.com/v1/token?key=${encodeURIComponent(s.cfg.apiKey)}`,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'grant_type=refresh_token&refresh_token='+encodeURIComponent(s.user.refresh)});
+  const j=await r.json().catch(()=>({})); if(!r.ok) throw new Error((j.error&&j.error.message)||'TOKEN_EXPIRED'); aSess(s,sv,j); return s.user.idToken;
+}
+async function aFetch(s,sv,url,method,body){
+  const tok=await aTok(s,sv); const r=await fetch(url,{method,headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:body?JSON.stringify(body):undefined});
+  const j=await r.json().catch(()=>({})); if(r.status===404) return null;
+  if(!r.ok){ const e=new Error((j.error&&(j.error.status||j.error.message))||('HTTP '+r.status)); e.code=r.status; throw e; } return j;
+}
+const dGet=async(s,sv,path)=>{ const j=await aFetch(s,sv,FSB(s)+'/'+path,'GET'); return j?(j.fields||{}):null; };
+const dW=(s,path,fields)=>({update:{name:`projects/${s.cfg.projectId}/databases/(default)/documents/${path}`,fields}});
+const dDel=(s,path)=>({delete:`projects/${s.cfg.projectId}/databases/(default)/documents/${path}`});
+const dCommit=(s,sv,writes)=>aFetch(s,sv,FSB(s)+':commit','POST',{writes});
+async function dQuery(s,sv,coll,field,val){
+  const j=await aFetch(s,sv,FSB(s)+':runQuery','POST',{structuredQuery:{from:[{collectionId:coll}],where:{fieldFilter:{field:{fieldPath:field},op:'EQUAL',value:{stringValue:val}}}}});
+  return (Array.isArray(j)?j:[]).filter(x=>x.document).map(x=>({id:x.document.name.split('/').pop(),f:x.document.fields||{}}));
+}
+function apiErr(e){
+  const m=String((e&&e.message)||e||'');
+  if(m==='INVITE_INVALID') return 'El código de invitación no es válido o fue revocado.';
+  if(m==='NOT_LINKED') return 'Esa cuenta no está vinculada a un profesor: usa el código de invitación y «Registrarme».';
+  if(/PERMISSION_DENIED|403/.test(m)) return 'Sin permiso: el profesor debe publicar las reglas de Firestore actualizadas (Ajustes → Cuenta y nube).';
+  return cloudErr(e);
+}
+const ISO=d=>{ const n=d.getDay(); return n===0?7:n; };
+const wkKey=d=>{ const x=new Date(d.getFullYear(),d.getMonth(),d.getDate()-(ISO(d)-1)); return ymd(x); };
+const DCORTO=['L','M','X','J','V','S','D'];
+const ANIMO=['😞','😕','😐','🙂','😄'], ANIMO_T=['Muy mal','Mal','Normal','Bien','Excelente'];
+function mediaTag(u,cls){ if(!u) return ''; return /^data:video/.test(u)?`<video class="${cls||'amedia'}" src="${u}" autoplay loop muted playsinline></video>`:`<img class="${cls||'amedia'}" src="${u}" alt="">`; }
+function readMedia(file,cb){
+  if(!file) return; const isAnim=/gif|mp4|webm/.test(file.type);
+  if(isAnim&&file.size>600000) return toast('El GIF pesa demasiado (máx. 600 KB). Usa uno más liviano.');
+  const fr=new FileReader(); fr.onerror=()=>toast('No se pudo leer el archivo');
+  fr.onload=()=>{ const url=fr.result; if(isAnim) return cb(url); const im=new Image(); im.onload=()=>{ const k=Math.min(1,480/Math.max(im.width,im.height)); const cv=document.createElement('canvas'); cv.width=Math.round(im.width*k); cv.height=Math.round(im.height*k); cv.getContext('2d').drawImage(im,0,0,cv.width,cv.height); cb(cv.toDataURL('image/jpeg',.72)); }; im.onerror=()=>toast('Ese archivo no es una imagen válida'); im.src=url; };
+  fr.readAsDataURL(file);
+}
+/* calendario de mes (lunes primero) */
+function calGrid(mes,cellFn,sel,act){
+  const [y,m]=mes.split('-').map(Number); const first=new Date(y,m-1,1), n=new Date(y,m,0).getDate(); const off=ISO(first)-1; let h=`<div class="cal7">${DCORTO.map(d=>`<div class="ch">${d}</div>`).join('')}`;
+  for(let i=0;i<off;i++) h+='<div></div>';
+  for(let d=1;d<=n;d++){ const ds=mes+'-'+pad(d); const o=cellFn(ds)||{}; h+=`<button class="cd ${o.cls||''} ${ds===sel?'sel':''} ${ds===ymd(new Date())?'today':''}" data-x="${act}" data-v="${ds}"><b>${d}</b><span>${o.mark||''}</span></button>`; }
+  return h+'</div>';
+}
+const monthShift=(mes,k)=>{ const [y,m]=mes.split('-').map(Number); const d=new Date(y,m-1+k,1); return d.getFullYear()+'-'+pad(d.getMonth()+1); };
+
+/* ===================== PROFESOR: panel por alumno ===================== */
+const GKEY='entrenabilidad_gifs';
+const gifsGet=()=>{ try{ return JSON.parse(localStorage.getItem(GKEY)||'{}')||{}; }catch(e){ return {}; } };
+const gifsSet=o=>{ try{ localStorage.setItem(GKEY,JSON.stringify(o)); return true; }catch(e){ toast('No hay espacio para guardar el GIF en el teléfono'); return false; } };
+const TA={}; /* notas/estado de cada alumno traídos de la nube */
+const appOf=c=>{ const a=c.app=c.app||{}; a.objetivos=a.objetivos||[]; a.rutinas=a.rutinas||[]; a.recs=a.recs||[]; a.dias=a.dias||{}; a.tnotas=a.tnotas||{}; a.nutri=a.nutri||''; a.gifUp=a.gifUp||{}; return a; };
+function inviteStr(code){ return 'ENT-'+btoa(JSON.stringify({a:CL.cfg.apiKey,p:CL.cfg.projectId,c:code})); }
+function sApp(c){
+  const a=appOf(S.clientes[c.id]); const mes=ui.am||ymd(new Date()).slice(0,7); const sel=ui.ad||'';
+  const cloudOk=!dbh&&fbOn()&&CL.user; let h='';
+  if(!cloudOk) return `<div class="card"><h3>App del alumno</h3><div class="sm mut" style="margin:6px 0">Para que ${esc(c.nombre)} tenga su propia app necesitas la cuenta en la nube (Ajustes → Cuenta y nube) con sesión iniciada en la APK.</div></div>`;
+  const st=TA[c.id]; const linked=!!a.sid;
+  h+=`<div class="card"><div class="row between"><h3>Acceso del alumno</h3><span class="chip ${linked?'ok':a.code?'warn':'gr'}">${linked?'Vinculado':a.code?'Invitación enviada':'Sin invitar'}</span></div>`;
+  if(!a.code) h+=`<div class="sm mut" style="margin:6px 0 10px">Crea una invitación: el alumno la pega en la app (modo Alumnos), elige su correo y clave y queda conectado a ti.</div><button class="btn pri" data-x="inv" data-id="${c.id}">Crear invitación</button>`;
+  else h+=`<div class="sm mut" style="margin:6px 0">${linked?'Cuenta: <b>'+esc(a.email||'')+'</b>':'Envíale este código por WhatsApp:'}</div>${linked?'':`<textarea readonly class="xinv" onclick="this.select()">${esc(inviteStr(a.code))}</textarea>`}<div class="row" style="margin-top:8px"><button class="btn" data-x="invshare" data-id="${c.id}">Compartir invitación</button><button class="btn" data-x="pull" data-id="${c.id}">Actualizar</button><button class="btn bad" data-x="${ui.xconf==='rev'+c.id?'revoke':'revask'}" data-id="${c.id}">${ui.xconf==='rev'+c.id?'Toca otra vez: quitar acceso':'Quitar acceso'}</button></div>`;
+  h+=`</div>`;
+  h+=`<div class="card"><div class="row between"><h3>Publicar cambios</h3><span class="xs mut">${a.pubAt?'Última vez: '+fdate(ymd(new Date(a.pubAt)))+' '+new Date(a.pubAt).toTimeString().slice(0,5):'Aún no publicado'}</span></div><div class="sm mut" style="margin:6px 0 10px">Lo que edites abajo llega al alumno cuando toques «Enviar al alumno».</div><button class="btn pri" data-x="pub" data-id="${c.id}" ${linked?'':'disabled'}>Enviar al alumno</button>${linked?'':'<div class="xs mut" style="margin-top:6px">Disponible cuando el alumno se registre.</div>'}</div>`;
+  /* objetivos */
+  h+=`<div class="card"><h3>Objetivos semanales</h3>${a.objetivos.map((o,i)=>`<div class="row between" style="padding:6px 0;border-top:1px solid var(--line)"><span class="sm">${esc(o.t)}</span><button class="btn sm ghost bad" data-x="objdel" data-id="${c.id}" data-i="${i}">✕</button></div>`).join('')||'<div class="sm mut" style="margin:6px 0">Sin objetivos todavía.</div>'}<div class="row" style="margin-top:8px"><input id="xobj" placeholder="Ej.: Entrenar 3 veces, 8 vasos de agua al día" class="grow"><button class="btn pri" data-x="objadd" data-id="${c.id}">Agregar</button></div></div>`;
+  /* rutinas */
+  h+=`<div class="card"><h3>Rutinas del alumno</h3>${a.rutinas.map((r,i)=>`<div class="row between" style="padding:6px 0;border-top:1px solid var(--line)"><div><b class="sm">${esc(r.n)}</b><div class="xs mut">${r.ej.length} ejercicios</div></div><button class="btn sm ghost bad" data-x="rutdel" data-id="${c.id}" data-i="${i}">✕</button></div>`).join('')||'<div class="sm mut" style="margin:6px 0">Sin rutinas asignadas.</div>'}<div class="row" style="margin-top:8px"><select id="xrut" class="grow"><option value="">Elegir plantilla…</option>${allPlantillas().map(p=>`<option value="${p.id}">${esc(p.nombre)}</option>`).join('')}</select><button class="btn pri" data-x="rutadd" data-id="${c.id}">Asignar</button></div><div class="xs mut" style="margin-top:6px">Se copia la plantilla. Crea o edita plantillas desde una sesión («Guardar como plantilla»).</div></div>`;
+  /* nutrición */
+  h+=`<div class="card"><h3>Recomendaciones alimenticias</h3><textarea id="xnutri" data-xc="nutri" data-id="${c.id}" rows="5" placeholder="Ej.: Desayuno: avena con fruta. Proteína en cada comida…">${esc(a.nutri)}</textarea></div>`;
+  /* recordatorios */
+  h+=`<div class="card"><h3>Recordatorios</h3><div class="xs mut" style="margin-bottom:6px">Llegan como notificación a la hora fija y, al abrir la app, se ve el mensaje con el GIF.</div>${a.recs.map((r,i)=>`<div style="padding:8px 0;border-top:1px solid var(--line)"><div class="row between"><div><b>${esc(r.h)}</b> <span class="xs mut">${(r.dias||[]).map(d=>DCORTO[d-1]).join(' ')}</span><div class="sm">${esc(r.msg)}</div></div><button class="btn sm ghost bad" data-x="recdel" data-id="${c.id}" data-i="${i}">✕</button></div>${r.gif&&gifsGet()[r.gif]?mediaTag(gifsGet()[r.gif],'amedia sm'):r.gif?'<div class="xs mut">GIF adjunto</div>':''}</div>`).join('')}
+  <div class="f" style="margin-top:8px"><div><label>Hora</label><input id="xrh" type="time" value="08:00"></div><div><label>GIF o imagen (opcional)</label><input id="xrg" type="file" accept="image/*,video/mp4" data-xc="gif"></div></div>
+  <div class="row" style="margin:6px 0">${DCORTO.map((d,i)=>`<label class="xdchip"><input type="checkbox" class="xrd" value="${i+1}" checked><span>${d}</span></label>`).join('')}</div>
+  ${ui.xgif?`<div class="xs" style="color:var(--c4)">GIF listo para adjuntar</div>${mediaTag(gifsGet()[ui.xgif],'amedia sm')}`:''}
+  <textarea id="xrm" rows="2" placeholder="Mensaje: Ej.: ¡Hora de tomar agua y estirar!"></textarea><button class="btn pri" style="margin-top:6px" data-x="recadd" data-id="${c.id}">Agregar recordatorio</button></div>`;
+  /* calendario */
+  const al=st&&st.alumno||{}; const an=al.notas||{}, am=al.animo||{};
+  const cell=ds=>{ const d=a.dias[ds], nn=(an[ds]||[]).length+(a.tnotas[ds]?1:0); return {cls:(d?'tr ':'')+(nn?'nt':''),mark:(d?'🏋️':'')+(nn?'📝':'')+(am[ds]?ANIMO[am[ds].v-1]:'')}; };
+  h+=`<div class="card"><div class="row between"><h3>Calendario de entrenamiento</h3><div class="row"><button class="btn sm" data-x="amonth" data-v="-1">‹</button><b class="sm">${MES[Number(mes.slice(5))-1]} ${mes.slice(0,4)}</b><button class="btn sm" data-x="amonth" data-v="1">›</button></div></div>${calGrid(mes,cell,sel,'aday')}<div class="xs mut" style="margin-top:6px">🏋️ día de entrenamiento · 📝 notas · el emoji es cómo se sintió el alumno.</div>`;
+  if(sel){ const d=a.dias[sel]; h+=`<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--line)"><b>${fdate(sel)}</b>
+   <div class="f" style="margin-top:6px"><div><label>Entrenamiento (vacío = descanso)</label><input id="xdt" value="${esc(d?d.t:'')}" placeholder="Ej.: Tren inferior"></div><div><label>Hora</label><input id="xdh" type="time" value="${esc(d?d.h:'18:00')}"></div></div>
+   <label style="margin-top:6px">Nota para el alumno ese día</label><input id="xdn" value="${esc(a.tnotas[sel]||'')}" placeholder="Opcional">
+   <div class="row" style="margin-top:8px"><button class="btn pri" data-x="daysave" data-id="${c.id}">Guardar día</button>${d?`<button class="btn" data-x="dayclr" data-id="${c.id}">Quitar entrenamiento</button>`:''}</div>
+   ${am[sel]?`<div class="sm" style="margin-top:8px">Estado del alumno: ${ANIMO[am[sel].v-1]} ${ANIMO_T[am[sel].v-1]} ${am[sel].t?'· «'+esc(am[sel].t)+'»':''}</div>`:''}
+   ${(an[sel]||[]).map(n=>`<div class="note">📝 <b>Alumno:</b> ${esc(n.t)}</div>`).join('')}</div>`; }
+  h+=`</div>`;
+  /* lo que reporta el alumno */
+  if(st&&st.alumno){ const p=al.perfil||{}; const recent=Object.entries(an).flatMap(([d,l])=>l.map(n=>({d,...n}))).sort((x,y)=>y.ts-x.ts).slice(0,8); const days=Object.keys(am).sort().slice(-7);
+    h+=`<div class="card"><h3>Lo que reporta el alumno</h3><div class="sm mut" style="margin:4px 0">Datos personales: ${[p.nombre,p.edad&&p.edad+' años',p.peso&&p.peso+' kg',p.estatura&&p.estatura+' cm',p.tel].filter(Boolean).map(esc).join(' · ')||'sin completar'}</div>
+    <div class="sm" style="margin:6px 0">Ánimo (últimos días): ${days.map(d=>`<span title="${fdate(d)}">${ANIMO[am[d].v-1]}</span>`).join(' ')||'–'}</div>
+    <div class="sm">Objetivos de esta semana: <b>${a.objetivos.filter(o=>(al.ok||{})[wkKey(new Date())+'|'+o.id]).length}/${a.objetivos.length}</b> cumplidos</div>
+    ${recent.map(n=>`<div class="note"><span class="xs mut">${fdate(n.d)}</span> ${esc(n.t)}</div>`).join('')||'<div class="sm mut" style="margin-top:6px">Aún sin notas.</div>'}</div>`; }
+  return h;
+}
+async function xPull(cid){
+  const c=S.clientes[cid]; if(!c||!CL.user) return; const a=appOf(c);
+  try{
+    if(!a.sid){ const l=await dQuery(CL,cloudSave,'students','trainerUid',CL.user.uid); const m=l.find(x=>gS(x.f.clienteId)===cid); if(m){ const cc=clone(c); cc.app.sid=m.id; cc.app.email=gS(m.f.email); put('clientes',cid,cc); } }
+    const sid=(S.clientes[cid].app||{}).sid; if(!sid) return;
+    const f=await dGet(CL,cloudSave,`students/${sid}/data/alumno`); TA[cid]={alumno:f?JSON.parse(gS(f.j)||'{}'):{},t:Date.now()}; render();
+  }catch(e){ toast(apiErr(e)); }
+}
+async function xPublish(cid){
+  const c=S.clientes[cid]; const a=appOf(c); if(!a.sid) return toast('El alumno aún no se registra con el código');
+  const plan={nombre:c.nombre,objetivos:a.objetivos,rutinas:a.rutinas,nutri:a.nutri,dias:a.dias,tnotas:a.tnotas,recs:a.recs,u:Date.now()}; const G=gifsGet(); const up={...a.gifUp};
+  try{
+    for(const r of a.recs){ if(r.gif&&!up[r.gif]&&G[r.gif]){ await dCommit(CL,cloudSave,[dW(CL,`students/${a.sid}/data/g_${r.gif}`,{j:fS(G[r.gif]),u:fI(Date.now())})]); up[r.gif]=1; } }
+    await dCommit(CL,cloudSave,[dW(CL,`students/${a.sid}/data/plan`,{j:fS(JSON.stringify(plan)),u:fI(plan.u)})]);
+    const cc=clone(S.clientes[cid]); cc.app.gifUp=up; cc.app.pubAt=plan.u; put('clientes',cid,cc); toast('Enviado al alumno');
+  }catch(e){ toast(apiErr(e)); }
+}
+async function xAct(a,el){
+  const id=el.dataset.id, v=el.dataset.v, i=Number(el.dataset.i); const g=x=>{ const e=document.getElementById(x); return e?e.value:''; };
+  const edit=fn=>{ const c=clone(S.clientes[id]); appOf(c); fn(c.app); put('clientes',id,c); };
+  switch(a){
+    case 'inv': { if(!CL.user) return toast('Inicia sesión en Ajustes → Cuenta y nube'); const code=Array.from({length:8},()=>'ABCDEFGHJKMNPQRSTUVWXYZ23456789'[Math.floor(Math.random()*31)]).join('');
+      try{ await dCommit(CL,cloudSave,[dW(CL,'links/'+code,{trainerUid:fS(CL.user.uid),clienteId:fS(id),nombre:fS(S.clientes[id].nombre)})]); edit(x=>{ x.code=code; }); toast('Invitación creada'); }catch(e){ toast(apiErr(e)); } break; }
+    case 'invshare': { const t=`Hola ${S.clientes[id].nombre}! Instala la app Entrenabilidad, elige «Alumnos» y pega este código de invitación:\n\n${inviteStr(S.clientes[id].app.code)}`; try{ if(navigator.share) await navigator.share({text:t}); else throw 0; }catch(e){ try{ await navigator.clipboard.writeText(t); toast('Invitación copiada'); }catch(e2){ fallbackCopy(t); toast('Invitación copiada'); } } break; }
+    case 'pull': xPull(id); break;
+    case 'revask': ui.xconf='rev'+id; render(); break;
+    case 'revoke': { const a2=appOf(S.clientes[id]); ui.xconf=null; try{ const w=[dDel(CL,'links/'+a2.code)]; if(a2.sid) w.push(dDel(CL,'students/'+a2.sid)); await dCommit(CL,cloudSave,w); edit(x=>{ delete x.code; delete x.sid; delete x.email; x.pubAt=0; x.gifUp={}; }); delete TA[id]; toast('Acceso quitado'); }catch(e){ toast(apiErr(e)); } break; }
+    case 'pub': xPublish(id); break;
+    case 'objadd': { const t=g('xobj').trim(); if(!t) return; edit(x=>x.objetivos.push({id:uid(),t})); break; }
+    case 'objdel': edit(x=>x.objetivos.splice(i,1)); break;
+    case 'rutadd': { const p=allPlantillas().find(q=>q.id===g('xrut')); if(!p) return toast('Elige una plantilla'); edit(x=>x.rutinas.push({id:uid(),n:p.nombre,ej:p.ejercicios.map(e=>({n:e.n,fase:e.fase,s:(()=>{ const o=(e.series||[]).map(s=>s.obj).filter(Boolean); if(!o.length) return ''; return o.every(z=>z===o[0])?o.length+' × '+o[0]:o.join(' · '); })(),lb:e.lbObj||'',rpe:e.rpe||'',rm:e.rm||'',fc:e.fc||'',desc:e.desc||'',obs:e.obs||''}))})); toast('Rutina asignada'); break; }
+    case 'rutdel': edit(x=>x.rutinas.splice(i,1)); break;
+    case 'recadd': { const msg=g('xrm').trim(); const dias=[...document.querySelectorAll('.xrd:checked')].map(e=>Number(e.value)); if(!msg) return toast('Escribe el mensaje'); if(!dias.length) return toast('Elige al menos un día'); const gid=ui.xgif||''; ui.xgif=null; edit(x=>x.recs.push({id:uid(),h:g('xrh')||'08:00',dias,msg,gif:gid})); break; }
+    case 'recdel': edit(x=>x.recs.splice(i,1)); break;
+    case 'amonth': ui.am=monthShift(ui.am||ymd(new Date()).slice(0,7),Number(v)); render(); break;
+    case 'aday': ui.ad=v; render(); break;
+    case 'daysave': { const d=ui.ad; const t=g('xdt').trim(), n=g('xdn').trim(); edit(x=>{ if(t) x.dias[d]={t,h:g('xdh')||'18:00'}; else delete x.dias[d]; if(n) x.tnotas[d]=n; else delete x.tnotas[d]; }); toast('Día guardado (recuerda enviarlo al alumno)'); break; }
+    case 'dayclr': edit(x=>{ delete x.dias[ui.ad]; }); break;
+  }
+}
+/* ===================== ALUMNO ===================== */
+const LS_ST='entrenabilidad_alumno';
+function stGet(){ let s={}; try{ s=JSON.parse(localStorage.getItem(LS_ST)||'{}')||{}; }catch(e){} s.alumno=s.alumno||{}; return s; }
+let ST=stGet(); const stSave=()=>{ try{ localStorage.setItem(LS_ST,JSON.stringify(ST)); }catch(e){} };
+const AU={tab:'inicio',month:ymd(new Date()).slice(0,7),sel:ymd(new Date()),rut:null,busy:false,msg:'',gif:{}};
+let stT=0;
+const stOn=()=>ST.cfg&&ST.user&&ST.sid;
+function aluStart(){ AU.sel=ymd(new Date()); AU.month=AU.sel.slice(0,7); if(stOn()){ aluSync(false); aluNotif(); } }
+async function aluAuth(kind){
+  const g=x=>{ const e=document.getElementById(x); return e?e.value.trim():''; }; const em=g('a_em'), pw=(document.getElementById('a_pw')||{}).value||'', inv=g('a_inv');
+  if(!em||!pw) return toast('Escribe tu correo y tu clave');
+  let cfg=ST.cfg, code=''; if(inv){ try{ const j=JSON.parse(atob(inv.replace(/\s/g,'').replace(/^ENT-/,''))); if(!j.a||!j.p||!j.c) throw 0; cfg={apiKey:j.a,projectId:j.p}; code=j.c; }catch(e){ return toast('El código de invitación no es válido'); } }
+  if(!cfg) return toast('Pega el código de invitación que te envió tu profesor');
+  if(kind==='up'&&!code) return toast('Para registrarte necesitas el código de invitación');
+  AU.busy=true; render(true); const T={cfg,user:null}; 
+  try{
+    const j=await aAuth(T,kind==='up'?'signUp':'signInWithPassword',{email:em,password:pw,returnSecureToken:true}); aSess(T,()=>{},j);
+    let sf=await dGet(T,()=>{},'students/'+j.localId);
+    if(!sf){ if(!code) throw new Error('NOT_LINKED'); const L=await dGet(T,()=>{},'links/'+code); if(!L) throw new Error('INVITE_INVALID');
+      await dCommit(T,()=>{},[dW(T,'students/'+j.localId,{trainerUid:fS(gS(L.trainerUid)),clienteId:fS(gS(L.clienteId)),code:fS(code),nombre:fS(gS(L.nombre)),email:fS(em)})]); sf={trainerUid:fS(gS(L.trainerUid)),nombre:fS(gS(L.nombre))}; }
+    if(ST.user&&ST.user.uid!==j.localId) ST={alumno:{}};
+    ST.cfg=cfg; ST.user=T.user; ST.sid=j.localId; ST.nombre=gS(sf.nombre); stSave(); AU.busy=false; render(true); toast(kind==='up'?'Cuenta creada':'Sesión iniciada'); aluSync(true); aluNotif();
+  }catch(e){ AU.busy=false; render(true); toast(apiErr(e)); }
+}
+function aluSet(fn){ fn(ST.alumno); ST.au=Date.now(); ST.dirty=1; stSave(); render(true); clearTimeout(stT); stT=setTimeout(()=>aluSync(false),1500); }
+let aluBusy=false;
+async function aluSync(manual){
+  if(!stOn()||aluBusy) return; aluBusy=true; AU.msg='sync'; const keep=document.activeElement&&document.activeElement.tagName==='INPUT';
+  try{
+    const sv=stSave;
+    const pf=await dGet(ST,sv,`students/${ST.sid}/data/plan`); if(pf){ const u=gI(pf.u); if(u!==ST.pu){ ST.plan=JSON.parse(gS(pf.j)); ST.pu=u; aluNotif(); } }
+    const af=await dGet(ST,sv,`students/${ST.sid}/data/alumno`); const ru=af?gI(af.u):0;
+    if(af&&ru>(ST.au||0)&&!ST.dirty){ ST.alumno=JSON.parse(gS(af.j)||'{}'); ST.au=ru; }
+    if(ST.dirty){ await dCommit(ST,sv,[dW(ST,`students/${ST.sid}/data/alumno`,{j:fS(JSON.stringify(ST.alumno)),u:fI(ST.au)})]); ST.dirty=0; }
+    for(const r of ((ST.plan||{}).recs||[])){ if(r.gif&&!AU.gif[r.gif]){ const gf=await dGet(ST,sv,`students/${ST.sid}/data/g_${r.gif}`); if(gf) AU.gif[r.gif]=gS(gf.j); } }
+    AU.msg='ok'; ST.last=Date.now(); stSave(); if(manual) toast('Actualizado');
+  }catch(e){ AU.msg='err'; AU.err=apiErr(e); if(manual) toast(AU.err); }
+  finally{ aluBusy=false; if(ROLE==='alumno'&&!keep&&!document.activeElement.matches('input,textarea,select')) render(true); }
+}
+async function aluNotif(){
+  const LN=window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.LocalNotifications; if(!LN||!ST.plan) return;
+  try{
+    let pm=await LN.checkPermissions(); if(pm.display!=='granted'){ pm=await LN.requestPermissions(); if(pm.display!=='granted') return; }
+    const pend=await LN.getPending(); if(pend&&pend.notifications&&pend.notifications.length) await LN.cancel({notifications:pend.notifications.map(n=>({id:n.id}))});
+    const list=[]; (ST.plan.recs||[]).forEach((r,i)=>{ const [hh,mm]=(r.h||'08:00').split(':').map(Number); (r.dias||[]).forEach(d=>list.push({id:2000+i*10+d,title:'Energy Alameda',body:r.msg||'Recordatorio de tu entrenador',schedule:{on:{weekday:(d%7)+1,hour:hh,minute:mm},allowWhileIdle:true}})); });
+    if(list.length) await LN.schedule({notifications:list});
+  }catch(e){}
+}
+function aluRender(){
+  const app=$('#app'); $('#overlay').innerHTML=''; $('#overlay').classList.remove('on'); document.body.classList.remove('lock');
+  if(!stOn()){
+    app.innerHTML=`<div class="rolebox"><div class="rolehd"><div class="rolelogo">Alumnos</div><h1>Ingresa tus datos</h1><div class="sub">Con el código que te dio tu profesor</div></div>
+    <div class="card">${ST.cfg?'':`<label>Código de invitación</label><textarea id="a_inv" rows="3" placeholder="ENT-…"></textarea>`}<div class="f" style="margin-top:6px"><div><label>Correo</label><input id="a_em" type="email" autocomplete="email"></div><div><label>Clave (mín. 6)</label><input id="a_pw" type="password" autocomplete="current-password"></div></div>
+    <div class="row" style="margin-top:10px"><button class="btn pri" data-x="aauth" data-v="in" ${AU.busy?'disabled':''}>Entrar</button><button class="btn" data-x="aauth" data-v="up" ${AU.busy?'disabled':''}>Registrarme</button></div><div class="xs mut" style="margin-top:8px">Primera vez: pega el código y toca «Registrarme». Después solo «Entrar».${ST.cfg?'':''}</div>${AU.busy?'<div class="xs" style="margin-top:6px">Conectando…</div>':''}</div>
+    <button class="btn ghost" data-x="role" data-v="">← Volver al inicio</button></div>`; return;
+  }
+  const P=ST.plan||{}; const AL=ST.alumno; const today=ymd(new Date());
+  const tabs=[['inicio','Inicio',ICON.hoy],['cal','Calendario',ICON.asistencia],['rut','Rutinas',ICON.tests],['comida','Comida',ICON.guias],['perfil','Perfil',ICON.clientes]];
+  let h=`<div class="top"><div><h1>Hola, ${esc(((AL.perfil&&AL.perfil.nombre)||ST.nombre||'').split(' ')[0]||'')} 👋</h1><div class="sub">${AU.msg==='sync'?'Actualizando…':AU.msg==='err'?'Sin conexión: '+esc(AU.err||''):ST.last?'Actualizado '+new Date(ST.last).toTimeString().slice(0,5):''}</div></div><button class="btn sm" data-x="async">↻</button></div>`;
+  if(AU.tab==='inicio'){
+    const d=(P.dias||{})[today]; const wk=wkKey(new Date()); const am=(AL.animo||{})[today];
+    h+=`<div class="card"><div class="xs mut">HOY · ${fdate(today)}</div>${d?`<div style="font-size:20px;font-weight:800;margin-top:4px">🏋️ ${esc(d.t)} <span class="sm mut">${esc(d.h||'')}</span></div>`:'<div style="font-size:18px;font-weight:700;margin-top:4px">Día de descanso 😌</div>'}${(P.tnotas||{})[today]?`<div class="note" style="margin-top:6px">💬 ${esc(P.tnotas[today])}</div>`:''}</div>`;
+    const rs=(P.recs||[]).filter(r=>(r.dias||[]).includes(ISO(new Date()))).sort((a,b)=>a.h.localeCompare(b.h)); const nowH=new Date().toTimeString().slice(0,5);
+    if(rs.length) h+=`<div class="card"><h3>Recordatorios de hoy</h3>${rs.map(r=>`<div style="padding:8px 0;border-top:1px solid var(--line);${r.h<nowH?'opacity:.6':''}"><b>${esc(r.h)}</b> <span class="sm">${esc(r.msg)}</span>${r.gif?(AU.gif[r.gif]?mediaTag(AU.gif[r.gif]):'<div class="xs mut">cargando imagen…</div>'):''}</div>`).join('')}</div>`;
+    h+=`<div class="card"><h3>Objetivos de la semana</h3>${(P.objetivos||[]).map(o=>{ const k=wk+'|'+o.id, on=(AL.ok||{})[k]; return `<label class="obj ${on?'on':''}"><input type="checkbox" data-xc="aok" data-v="${k}" ${on?'checked':''}><span>${esc(o.t)}</span></label>`; }).join('')||'<div class="sm mut" style="margin-top:6px">Tu profesor aún no definió objetivos.</div>'}</div>`;
+    h+=`<div class="card"><h3>¿Cómo te sientes hoy?</h3><div class="moods">${ANIMO.map((e,i)=>`<button class="mood ${am&&am.v===i+1?'on':''}" data-x="amood" data-v="${i+1}"><span>${e}</span><small>${ANIMO_T[i]}</small></button>`).join('')}</div><input id="a_mt" placeholder="Cuéntale algo a tu profesor (opcional)" value="${esc(am?am.t||'':'')}" data-xc="amoodtxt" style="margin-top:8px"></div>`;
+  }
+  if(AU.tab==='cal'){
+    const D=P.dias||{}, N=AL.notas||{}, TN=P.tnotas||{}, A=AL.animo||{}; const sel=AU.sel; const d=D[sel];
+    h+=`<div class="card"><div class="row between"><div class="row"><button class="btn sm" data-x="acm" data-v="-1">‹</button></div><b>${MES[Number(AU.month.slice(5))-1]} ${AU.month.slice(0,4)}</b><div class="row"><button class="btn sm" data-x="acm" data-v="1">›</button></div></div>
+    ${calGrid(AU.month,ds=>({cls:(D[ds]?'tr ':'')+((N[ds]||[]).length?'nt':''),mark:(D[ds]?'🏋️':'')+((N[ds]||[]).length||TN[ds]?'📝':'')+(A[ds]?ANIMO[A[ds].v-1]:'')}),sel,'acd')}<div class="xs mut" style="margin-top:6px">🏋️ entrenas · 📝 notas</div></div>
+    <div class="card"><b>${fdate(sel)}</b>${d?`<div class="sm" style="margin-top:4px">🏋️ <b>${esc(d.t)}</b> ${esc(d.h||'')}</div>`:'<div class="sm mut" style="margin-top:4px">Sin entrenamiento programado.</div>'}${TN[sel]?`<div class="note">💬 Profesor: ${esc(TN[sel])}</div>`:''}
+    ${(N[sel]||[]).map(n=>`<div class="note row between"><span>📝 ${esc(n.t)}</span><button class="btn sm ghost bad" data-x="anotedel" data-v="${n.id}">✕</button></div>`).join('')}
+    <div class="row" style="margin-top:8px"><input id="a_nt" class="grow" placeholder="Agregar una nota para este día"><button class="btn pri" data-x="anote">Agregar</button></div></div>`;
+  }
+  if(AU.tab==='rut'){
+    const R=P.rutinas||[]; const r=R.find(x=>x.id===AU.rut);
+    if(!r) h+=R.map(x=>`<button class="card rutb" data-x="arut" data-v="${x.id}"><b>${esc(x.n)}</b><div class="xs mut">${x.ej.length} ejercicios · toca para ver</div></button>`).join('')||'<div class="empty">Tu profesor aún no te asignó rutinas.</div>';
+    else h+=`<button class="btn ghost sm" data-x="arut" data-v="" style="padding-left:0">← Rutinas</button><h2 style="margin:4px 0 8px">${esc(r.n)}</h2>${r.ej.map(e=>{ const th=exAnim(e.n,{size:56,follow:1}); return `<div class="card"><div class="row">${th?`<div class="exth" style="cursor:default">${th}</div>`:''}<div class="grow"><b>${esc(e.n)}</b><div class="xs mut">${esc(e.fase||'')}</div></div></div><div class="sm" style="margin-top:6px">${[e.s&&'Series: '+e.s,e.lb&&'Carga: '+e.lb+' lb',e.rpe&&'RPE '+e.rpe,e.rm&&e.rm+'% RM',e.fc&&e.fc+' FC máx',e.desc&&'Descanso '+e.desc].filter(Boolean).map(esc).join(' · ')}</div>${e.obs?`<div class="xs mut" style="margin-top:4px">${esc(e.obs)}</div>`:''}</div>`; }).join('')}`;
+  }
+  if(AU.tab==='comida') h+=`<div class="card"><h3>Recomendaciones alimenticias</h3><div class="sm" style="white-space:pre-wrap;margin-top:8px">${esc(P.nutri||'Tu profesor aún no dejó recomendaciones.')}</div></div>`;
+  if(AU.tab==='perfil'){ const p=AL.perfil||{}; const F=(k,l,t)=>`<div><label>${l}</label><input data-xc="aperfil" data-k="${k}" type="${t||'text'}" value="${esc(p[k]!=null?p[k]:(k==='nombre'?ST.nombre||'':''))}"></div>`;
+    h+=`<div class="card"><h3>Mis datos personales</h3><div class="f">${F('nombre','Nombre')}${F('edad','Edad','number')}${F('peso','Peso (kg)','number')}${F('estatura','Estatura (cm)','number')}${F('tel','Teléfono','tel')}</div><div class="xs mut" style="margin-top:6px">Tu profesor ve estos datos. Se guardan al salir del campo.</div></div><div class="card"><div class="sm">Cuenta: <b>${esc(ST.user.email||'')}</b></div><button class="btn bad" style="margin-top:8px" data-x="aout">Cerrar sesión</button></div>`; }
+  app.innerHTML=h+`<nav class="nav">${tabs.map(t=>`<button class="${AU.tab===t[0]?'on':''}" data-x="atab" data-v="${t[0]}">${t[2]}<span>${t[1]}</span></button>`).join('')}</nav>`;
+}
+function aluAct(a,v){
+  const g=x=>{ const e=document.getElementById(x); return e?e.value:''; };
+  switch(a){
+    case 'aauth': aluAuth(v); break;
+    case 'atab': AU.tab=v; AU.rut=null; render(true); window.scrollTo(0,0); break;
+    case 'async': aluSync(true); break;
+    case 'amood': { const t=g('a_mt'); aluSet(A=>{ A.animo=A.animo||{}; const d=ymd(new Date()); A.animo[d]={v:Number(v),t}; }); break; }
+    case 'acm': AU.month=monthShift(AU.month,Number(v)); render(true); break;
+    case 'acd': AU.sel=v; render(true); break;
+    case 'anote': { const t=g('a_nt').trim(); if(!t) return; aluSet(A=>{ A.notas=A.notas||{}; (A.notas[AU.sel]=A.notas[AU.sel]||[]).push({id:uid(),t,ts:Date.now()}); }); break; }
+    case 'anotedel': aluSet(A=>{ A.notas[AU.sel]=(A.notas[AU.sel]||[]).filter(n=>n.id!==v); if(!A.notas[AU.sel].length) delete A.notas[AU.sel]; }); break;
+    case 'arut': AU.rut=v||null; render(true); window.scrollTo(0,0); break;
+    case 'aout': ST={alumno:{}}; try{ localStorage.removeItem(LS_ST); }catch(e){} AU.gif={}; render(true); break;
+  }
+}
+/* eventos propios (data-x / data-xc) */
+document.addEventListener('click',e=>{
+  const el=e.target.closest('[data-x]'); if(!el||el.tagName==='INPUT'&&el.type==='checkbox') return; const a=el.dataset.x, v=el.dataset.v;
+  if(a==='role'){ setRole(v); return; }
+  if(['aauth','atab','async','amood','acm','acd','anote','anotedel','arut','aout'].includes(a)) return aluAct(a,v);
+  xAct(a,el);
+});
+document.addEventListener('change',e=>{
+  const el=e.target; const t=el.dataset&&el.dataset.xc; if(!t) return;
+  if(t==='nutri'){ const c=clone(S.clientes[el.dataset.id]); appOf(c); c.app.nutri=el.value; put('clientes',el.dataset.id,c); }
+  if(t==='gif'){ const f=el.files&&el.files[0]; readMedia(f,url=>{ const G=gifsGet(); const gid=uid(); G[gid]=url; if(gifsSet(G)){ ui.xgif=gid; render(); } }); }
+  if(t==='aok'){ const k=el.dataset.v; aluSet(A=>{ A.ok=A.ok||{}; if(el.checked) A.ok[k]=1; else delete A.ok[k]; }); }
+  if(t==='amoodtxt'){ const d=ymd(new Date()); aluSet(A=>{ A.animo=A.animo||{}; const o=A.animo[d]; if(o) o.t=el.value; else if(el.value) A.animo[d]={v:3,t:el.value}; }); }
+  if(t==='aperfil'){ const k=el.dataset.k; aluSet(A=>{ A.perfil=A.perfil||{}; A.perfil[k]=el.type==='number'?(el.value===''?'':Number(el.value)):el.value.trim(); }); }
+});
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden&&ROLE==='alumno') aluSync(false); });
+window.addEventListener('online',()=>{ if(ROLE==='alumno') aluSync(false); });
+setInterval(()=>{ if(!document.hidden&&ROLE==='alumno') aluSync(false); },120000);
+setTimeout(()=>{ if(ROLE==='alumno') aluStart(); },1200);
 
 /* ============ Respaldo en archivo y aviso ============ */
 const LS_META='entrenabilidad_meta';
@@ -1199,10 +1486,10 @@ function vClientes(){
 
 function vClient(){
   const c=cli(ui.cid); if(!c){ ui.cid=null; return vClientes(); }
-  const subs=[['resumen','Resumen'],['sesiones','Sesiones'],['med','Mediciones'],['tests','Tests'],['macro','Macrociclo'],['habitos','Hábitos']];
+  const subs=[['resumen','Resumen'],['sesiones','Sesiones'],['med','Mediciones'],['tests','Tests'],['macro','Macrociclo'],['habitos','Hábitos'],['app','App alumno']];
   let h=`<div class="top"><div><button class="btn ghost sm" data-a="back" style="padding-left:0">← Clientes</button><h1>${esc(c.nombre)}</h1><div class="sub">${esc(c.objetivo||'Sin objetivo')} ${c.edad?'· '+c.edad+' años':''} ${c.sexo?'· '+(c.sexo==='M'?'Hombre':'Mujer'):''} ${c.peso?'· '+fmt(c.peso)+' kg':''} ${c.talla?'· '+fmt(c.talla,0)+' cm':''}</div></div><button class="btn" data-a="editclient" data-id="${c.id}">Editar</button></div>`;
   h+=`<div class="tabs">${subs.map(s=>`<button class="${ui.sub===s[0]?'on':''}" data-a="sub" data-v="${s[0]}">${s[1]}</button>`).join('')}</div>`;
-  h+=({resumen:sResumen,sesiones:sSesiones,med:sMed,tests:sTests,macro:sMacro,habitos:sHabitos}[ui.sub]||sResumen)(c);
+  h+=({resumen:sResumen,sesiones:sSesiones,med:sMed,tests:sTests,macro:sMacro,habitos:sHabitos,app:sApp}[ui.sub]||sResumen)(c);
   return h;
 }
 
@@ -1373,7 +1660,7 @@ function vAjustes(){
   h+=`<div class="card"><h3>Almacenamiento</h3><div class="sm" style="margin-top:6px">${mode==='nube'?'Los datos se guardan en la base de datos de esta página y sobreviven a cerrar o cambiar de dispositivo.':'Los datos se guardan en este teléfono, dentro de la app: se conservan al cerrarla, al reiniciar y al actualizarla. Se pierden si desinstalas la app o borras sus datos: guarda un respaldo con frecuencia.'}</div></div>`;
   h+=`<div class="card"><h3>Cargar clientes de tus Excel</h3><div class="sm mut" style="margin:6px 0 10px">Crea ${SEED_CLIENTES.length} clientes con los días, horarios, clases y valores que aparecen en tus planillas (sin duplicar los que ya existen) y la medición InBody de Cristian. El sexo solo se completó donde tus planillas lo indican: complétalo en cada ficha antes de hacer tests.</div><button class="btn pri" data-a="seed">Cargar clientes</button></div>`;
   h+=`<div class="card"><details><summary style="font-size:15px;font-weight:600;cursor:pointer">Biblioteca de movimientos <span class="xs mut" style="font-weight:400">· ${Object.keys(EXA).length} animaciones</span></summary><div class="xs mut" style="margin-top:6px">Toca uno para verlo grande. También aparecen junto al nombre de cada ejercicio de una sesión.</div><div class="lib">${Object.keys(EXA).map(k=>`<button data-a="exdemo" data-k="${k}">${exAnimK(k,{size:70})}<div><b>${EXA[k].n}</b></div><div style="color:var(--mut)">${EXA[k].mus||''}</div></button>`).join('')}</div></details></div>`;
-  h+=cloudCard();
+  h+=cloudCard()+roleCard();
   const lb=metaGet().lastBackup;
   h+=`<div class="card"><h3>Respaldo</h3><div class="sm mut" style="margin:6px 0 10px">Último respaldo: <b>${lb?fdate(ymd(new Date(lb)))+' ('+backupAge()+' d)':'nunca'}</b>. Guárdalo en tu correo, Drive o WhatsApp para no perder datos si cambias de teléfono o desinstalas la app.</div><div class="row" style="margin:8px 0"><button class="btn pri" data-a="exportf">Guardar / enviar respaldo (archivo)</button><button class="btn" data-a="importf">Restaurar desde archivo</button><input type="file" id="impf" accept=".json,application/json" style="display:none"></div><div class="row" style="margin:8px 0"><button class="btn sm" data-a="backup">Copiar respaldo (texto)</button></div><label>Restaurar pegando el texto</label><textarea id="restore" placeholder="Pega el JSON y toca Restaurar"></textarea><div class="row" style="margin-top:8px"><button class="btn" data-a="restore">Restaurar</button></div></div>`;
   h+=`<div class="card"><h3>Datos que corregí al importar</h3><ul class="sm" style="margin:8px 0 0;padding-left:18px"><li>Rangos de repeticiones que Excel había convertido en fechas (ej. «3-4» → 4 de marzo) ya están restaurados en las tablas del test de fuerza.</li><li>Capacidad aeróbica, hombres 50-59 años: tu tabla decía «Buena 34-44» y «Excelente > 42». Usé Excelente &gt; 44.</li><li>El VO₂máx se muestra con el valor de la tabla de Harvard y ajustado por edad (tu tabla de factores), y la categoría usa el ajustado.</li></ul></div>`;
@@ -1518,6 +1805,8 @@ function renderModal(){
 
 /* ============ Render principal ============ */
 function render(force){
+  if(ROLE==='alumno'){ aluRender(); return; }
+  if(ROLE!=='profe'){ renderRole(); return; }
   if(ui.modal && !force) return;
   const app=$('#app'); const ov=$('#overlay');
   const tabs=[['hoy','Hoy'],['clientes','Clientes'],['asistencia','Asistencia'],['tests','Tests'],['guias','Guías'],['ajustes','Ajustes']];
@@ -1596,7 +1885,7 @@ document.addEventListener('click',e=>{
     case 'tab': ui.tab=v; ui.cid=null; ui.confirm=null; render(); window.scrollTo(0,0); break;
     case 'client': ui.tab='clientes'; ui.cid=id; ui.sub='resumen'; ui.confirm=null; render(); window.scrollTo(0,0); break;
     case 'back': ui.cid=null; render(); break;
-    case 'sub': ui.sub=v; ui.confirm=null; render(); break;
+    case 'sub': ui.sub=v; ui.confirm=null; render(); if(v==='app'&&ui.cid) xPull(ui.cid); break;
     case 'mes': { const [y,m]=ui.month.split('-').map(Number); const d=new Date(y,m-1+Number(v),1); ui.month=d.getFullYear()+'-'+pad(d.getMonth()+1); render(); break; }
     case 'ask': ui.confirm=el.dataset.key; render(); break;
     case 'herosig': { ui.hero=(ui.hero+1)%HEROS.length; heroShow(); break; }
