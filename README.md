@@ -11,3 +11,6 @@ App de planificación y seguimiento de entrenamiento (clientes, sesiones, asiste
 Los datos se guardan en el propio teléfono. Haz respaldos desde **Ajustes > Copiar respaldo**.
 
 La app vive en `www/index.html`. Cada vez que se cambia y se sube a `main`, el APK se compila de nuevo.
+
+## Actualizar sin perder datos
+El APK se firma siempre con la misma llave (`signing/debug.keystore`), así que una versión nueva se instala encima de la anterior y conserva los datos del teléfono. Si algún día cambias la llave, habrá que desinstalar la app una vez (y restaurar desde un respaldo).

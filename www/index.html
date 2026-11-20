@@ -245,8 +245,8 @@ const lbToKg = v => v/2.2046;
 const COLS = ['clientes','sesiones','tests','mediciones','asistencia','metas','macros','plantillas'];
 const S = {}; COLS.forEach(c=>S[c]={});
 let dbh = null, mode = 'cargando', loaded = {}, chain = {};
-function persistLocal(){ try{ localStorage.setItem('entrenabilidad_v1',JSON.stringify(S)); }catch(e){} }
-function loadLocal(){ try{ const r=localStorage.getItem('entrenabilidad_v1'); if(r){ const o=JSON.parse(r); COLS.forEach(c=>{ S[c]=o[c]||{}; }); } }catch(e){} }
+function persistLocal(){ try{ const old=localStorage.getItem('entrenabilidad_v1'); if(old) localStorage.setItem('entrenabilidad_v1_bak',old); localStorage.setItem('entrenabilidad_v1',JSON.stringify(S)); }catch(e){} }
+function loadLocal(){ for(const k of ['entrenabilidad_v1','entrenabilidad_v1_bak']){ try{ const r=localStorage.getItem(k); if(r){ const o=JSON.parse(r); COLS.forEach(c=>{ S[c]=o[c]||{}; }); return; } }catch(e){} } }
 function queue(key,fn){ const p=(chain[key]||Promise.resolve()).catch(()=>{}).then(fn); chain[key]=p; return p; }
 function put(col,id,obj){
   obj = clone(obj); S[col][id]=obj;
@@ -806,6 +806,33 @@ function barChart(items,h=150,unit=''){
 }
 
 
+
+/* ============ Respaldo en archivo y aviso ============ */
+const LS_META='entrenabilidad_meta';
+function metaGet(){ try{ return JSON.parse(localStorage.getItem(LS_META)||'{}'); }catch(e){ return {}; } }
+function metaSet(o){ try{ localStorage.setItem(LS_META,JSON.stringify({...metaGet(),...o})); }catch(e){} }
+try{ if(!metaGet().since) metaSet({since:Date.now()}); if(navigator.storage&&navigator.storage.persist) navigator.storage.persist(); }catch(e){}
+function backupText(){ return JSON.stringify({app:'entrenabilidad',version:1,fecha:new Date().toISOString(),...S}); }
+async function exportFile(){
+  const txt=backupText(); const name='respaldo-entrenabilidad-'+ymd(new Date())+'.json'; const P=window.Capacitor&&window.Capacitor.Plugins;
+  try{
+    if(P&&P.Filesystem&&P.Share){
+      const w=await P.Filesystem.writeFile({path:name,data:txt,directory:'CACHE',encoding:'utf8'});
+      await P.Share.share({title:'Respaldo Entrenabilidad',text:'Respaldo de Entrenabilidad',url:w.uri,dialogTitle:'Guardar el respaldo en…'});
+    } else { const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([txt],{type:'application/json'})); a.download=name; document.body.appendChild(a); a.click(); a.remove(); }
+    metaSet({lastBackup:Date.now()}); render(); toast('Respaldo listo');
+  }catch(e){ if(!/cancel/i.test(String(e&&(e.message||e)))) toast('No se pudo exportar. Usa «Copiar respaldo (texto)».'); }
+}
+function importFile(file){
+  if(!file) return; const r=new FileReader();
+  r.onload=()=>{ try{ const o=JSON.parse(String(r.result)); if(!o||typeof o!=='object'||!o.clientes) throw new Error('x');
+      const n=Object.keys(o.clientes||{}).length; const ok=(typeof confirm==='function')?confirm('Restaurar el respaldo ('+n+' clientes)? Reemplaza los datos actuales de la app.'):true;
+      if(ok){ restoreAll(o); metaSet({lastBackup:Date.now()}); } }catch(e){ toast('Ese archivo no es un respaldo válido'); } };
+  r.readAsText(file);
+}
+document.addEventListener('change',e=>{ if(e.target&&e.target.id==='impf'){ importFile(e.target.files[0]); e.target.value=''; } });
+function backupAge(){ const m=metaGet(); const t0=m.lastBackup||m.since||Date.now(); return Math.floor((Date.now()-t0)/864e5); }
+
 /* ============ Progreso por ejercicio, radar y utilidades de datos ============ */
 const exNorm=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/\s+/g,' ').trim();
 function exHist(cid,skipId){
@@ -1108,10 +1135,11 @@ function vTests(){
 function vAjustes(){
   const nC=Object.keys(S.clientes).length;
   let h=`<div class="top"><div><h1>Ajustes</h1><div class="sub">Datos y respaldo</div></div></div>`;
-  h+=`<div class="card"><h3>Almacenamiento</h3><div class="sm" style="margin-top:6px">${mode==='nube'?'Los datos se guardan en la base de datos de esta página y sobreviven a cerrar o cambiar de dispositivo.':'Modo local: los datos viven solo en este navegador. Si se borra el historial, se pierden: copia un respaldo con frecuencia.'}</div></div>`;
+  h+=`<div class="card"><h3>Almacenamiento</h3><div class="sm" style="margin-top:6px">${mode==='nube'?'Los datos se guardan en la base de datos de esta página y sobreviven a cerrar o cambiar de dispositivo.':'Los datos se guardan en este teléfono, dentro de la app: se conservan al cerrarla, al reiniciar y al actualizarla. Se pierden si desinstalas la app o borras sus datos: guarda un respaldo con frecuencia.'}</div></div>`;
   h+=`<div class="card"><h3>Cargar clientes de tus Excel</h3><div class="sm mut" style="margin:6px 0 10px">Crea ${SEED_CLIENTES.length} clientes con los días, horarios, clases y valores que aparecen en tus planillas (sin duplicar los que ya existen) y la medición InBody de Cristian. El sexo solo se completó donde tus planillas lo indican: complétalo en cada ficha antes de hacer tests.</div><button class="btn pri" data-a="seed">Cargar clientes</button></div>`;
   h+=`<div class="card"><details><summary style="font-size:15px;font-weight:600;cursor:pointer">Biblioteca de movimientos <span class="xs mut" style="font-weight:400">· ${Object.keys(EXA).length} animaciones</span></summary><div class="xs mut" style="margin-top:6px">Toca uno para verlo grande. También aparecen junto al nombre de cada ejercicio de una sesión.</div><div class="lib">${Object.keys(EXA).map(k=>`<button data-a="exdemo" data-k="${k}">${exAnimK(k,{size:70})}<div><b>${EXA[k].n}</b></div><div style="color:var(--mut)">${EXA[k].mus||''}</div></button>`).join('')}</div></details></div>`;
-  h+=`<div class="card"><h3>Respaldo</h3><div class="row" style="margin:8px 0"><button class="btn" data-a="backup">Copiar respaldo (JSON)</button></div><label>Restaurar: pega aquí un respaldo</label><textarea id="restore" placeholder="Pega el JSON y toca Restaurar"></textarea><div class="row" style="margin-top:8px"><button class="btn" data-a="restore">Restaurar</button></div></div>`;
+  const lb=metaGet().lastBackup;
+  h+=`<div class="card"><h3>Respaldo</h3><div class="sm mut" style="margin:6px 0 10px">Último respaldo: <b>${lb?fdate(ymd(new Date(lb)))+' ('+backupAge()+' d)':'nunca'}</b>. Guárdalo en tu correo, Drive o WhatsApp para no perder datos si cambias de teléfono o desinstalas la app.</div><div class="row" style="margin:8px 0"><button class="btn pri" data-a="exportf">Guardar / enviar respaldo (archivo)</button><button class="btn" data-a="importf">Restaurar desde archivo</button><input type="file" id="impf" accept=".json,application/json" style="display:none"></div><div class="row" style="margin:8px 0"><button class="btn sm" data-a="backup">Copiar respaldo (texto)</button></div><label>Restaurar pegando el texto</label><textarea id="restore" placeholder="Pega el JSON y toca Restaurar"></textarea><div class="row" style="margin-top:8px"><button class="btn" data-a="restore">Restaurar</button></div></div>`;
   h+=`<div class="card"><h3>Datos que corregí al importar</h3><ul class="sm" style="margin:8px 0 0;padding-left:18px"><li>Rangos de repeticiones que Excel había convertido en fechas (ej. «3-4» → 4 de marzo) ya están restaurados en las tablas del test de fuerza.</li><li>Capacidad aeróbica, hombres 50-59 años: tu tabla decía «Buena 34-44» y «Excelente > 42». Usé Excelente &gt; 44.</li><li>El VO₂máx se muestra con el valor de la tabla de Harvard y ajustado por edad (tu tabla de factores), y la categoría usa el ajustado.</li></ul></div>`;
   h+=`<div class="card"><h3>Borrar datos recabados</h3><div class="sm mut" style="margin:6px 0 10px">Elimina sesiones, tests, mediciones, asistencia, hábitos y macrociclos de todos los clientes, pero conserva a los clientes y sus planes.</div>${confirmBtn('wipedata','Borrar solo los registros','wipedata','')}</div>`;
   h+=`<div class="card"><h3>Peligro</h3><div class="sm mut" style="margin:6px 0 10px">Borra todos los clientes, sesiones y registros (${nC} clientes ahora).</div>${confirmBtn('wipe','Borrar todos los datos','wipe','')}</div>`;
@@ -1258,7 +1286,7 @@ function render(force){
   if(ui.tab==='clientes') v=ui.cid?vClient():vClientes();
   else v=({hoy:vHoy,asistencia:vAsistencia,tests:vTests,ajustes:vAjustes}[ui.tab]||vHoy)();
   let banner='';
-  if(mode==='local') banner=`<div class="banner">Modo local: los datos se guardan solo en este navegador. Copia un respaldo desde Ajustes.</div>`;
+  if(mode==='local'){ const nCl=Object.keys(S.clientes).length; const ag=backupAge(); banner=nCl&&ag>=7?`<div class="banner ptr" data-a="tab" data-v="ajustes">${metaGet().lastBackup?'Hace '+ag+' días que no guardas un respaldo.':'Aún no has guardado un respaldo de tus datos.'} Toca para respaldar.</div>`:''; }
   if(ui.slow) banner+=`<div class="banner">No se pudo conectar con la base de datos todavía. Lo que ves puede estar desactualizado.</div>`;
   const keepScroll=window.scrollY; const oldHero=app.querySelector('.hero'); const vk=ui.tab+'|'+(ui.cid||'')+'|'+(ui.cid?ui.sub:'');
   app.innerHTML=banner+v+`<nav class="nav">${tabs.map(t=>`<button class="${ui.tab===t[0]?'on':''}" data-a="tab" data-v="${t[0]}">${ICON[t[0]==='ajustes'?'ajustes':t[0]]}<span>${t[1]}</span></button>`).join('')}</nav>`;
@@ -1397,7 +1425,9 @@ document.addEventListener('click',e=>{
     case 'objm': { const mid=id+'_'+ui.month; const d=clone(S.metas[mid]||{cid:id,mes:ui.month,habitos:HABITOS_BASE.slice(),obj:OBJ_MES_BASE.map(t=>({t,ok:null})),d:{}}); const o=d.obj[+el.dataset.i]; const nv=v==='1'; o.ok=o.ok===nv?null:nv; put('metas',mid,d); break; }
     /* ajustes */
     case 'seed': seedAll(); break;
-    case 'backup': { const txt=JSON.stringify(S); const done=()=>toast('Respaldo copiado'); try{ navigator.clipboard.writeText(txt).then(done,()=>fallbackCopy(txt)); }catch(err){ fallbackCopy(txt); } break; }
+    case 'exportf': exportFile(); break;
+    case 'importf': { const f=document.getElementById('impf'); if(f) f.click(); break; }
+    case 'backup': { const txt=backupText(); metaSet({lastBackup:Date.now()}); const done=()=>toast('Respaldo copiado'); try{ navigator.clipboard.writeText(txt).then(done,()=>fallbackCopy(txt)); }catch(err){ fallbackCopy(txt); } break; }
     case 'restore': { const t=$('#restore').value.trim(); if(!t){ toast('Pega primero el respaldo'); break; } try{ const o=JSON.parse(t); restoreAll(o); }catch(err){ toast('El texto no es un respaldo válido'); } break; }
     case 'wipe': case 'wipe_ok': if(a==='wipe'){ ui.confirm='wipe'; render(); break; } wipeAll(); break;
   }
