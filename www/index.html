@@ -47,6 +47,12 @@ h1{font-size:24px;background:var(--grad);-webkit-background-clip:text;background
 .moods{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-top:8px}.mood{background:var(--card-s);border:1px solid var(--line);border-radius:12px;padding:8px 0;color:var(--ink);font:inherit;cursor:pointer;display:flex;flex-direction:column;align-items:center}.mood span{font-size:26px}.mood small{font-size:10px;color:var(--mut)}.mood.on{background:rgba(46,230,197,.2);border-color:#2ee6c5}
 .rutb{display:block;width:100%;text-align:left;color:var(--ink);font:inherit;cursor:pointer}
 .modebtn{position:fixed;right:10px;bottom:calc(72px + env(safe-area-inset-bottom));z-index:6;background:rgba(14,8,30,.85);color:var(--ink);border:1px solid var(--line);border-radius:999px;padding:7px 12px;font:inherit;font-size:12px;cursor:pointer;opacity:.85}
+.tcard{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:14px;margin:10px 0}
+.tic{width:42px;height:42px;border-radius:12px;background:rgba(46,230,197,.15);display:flex;align-items:center;justify-content:center;font-size:22px;flex:none}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));gap:8px;margin:10px 0}
+.kpis>div{background:var(--card-s);border-radius:12px;padding:8px 10px}.kpis small{display:block;font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.04em}.kpis b{font-size:20px}.kpis b span{font-size:12px;font-weight:500;color:var(--mut)}
+.lr{background:var(--card-s);border-radius:12px;padding:10px;margin:8px 0}.lrrow{display:flex;align-items:center;gap:8px;margin-top:6px;font-size:13px}.lrrow span{width:30px;color:var(--mut)}.lrrow i{height:12px;border-radius:6px;display:block;min-width:4px}
+.explain{background:rgba(255,210,63,.08);border:1px solid rgba(255,210,63,.25);border-radius:12px;padding:10px;margin-top:8px;font-size:14px;line-height:1.5}
 .nav{position:fixed;left:0;right:0;bottom:0;background:rgba(14,8,30,.96);border-top:1px solid var(--line);display:flex;justify-content:center;z-index:5;padding-bottom:env(safe-area-inset-bottom)}
 .nav button{flex:1;max-width:180px;background:none;border:0;padding:10px 4px 9px;color:var(--mut);font:inherit;font-size:12px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px}
 .nav button svg{width:22px;height:22px}
@@ -1237,10 +1243,16 @@ async function xPull(cid){
 }
 async function xPublish(cid,silent){
   const c=S.clientes[cid]; const a=appOf(c); if(!a.sid) return silent||toast('El alumno aún no se registra con el código');
-  const tsx=ofC('tests',cid).sort((x,y)=>x.fecha.localeCompare(y.fecha)).map(t=>{ const T=testById(t.tipo), v=valorOf(t), r=t.res||{}; return {k:t.tipo,n:testName(t),cap:T?T.cap:'',f:t.fecha,v:(v==null||isNaN(v))?null:Math.round(v*100)/100,u:t.tipo==='fuerza'?'pts':t.tipo==='harvard'?'ml/kg/min':(r.unidad||''),cat:r.cat||'',s:catScore(r.cat)}; });
+  const tsx=ofC('tests',cid).sort((x,y)=>x.fecha.localeCompare(y.fecha)).map(t=>{ const T=testById(t.tipo), v=valorOf(t), r=t.res||{}; return {k:t.tipo,n:testName(t),cap:T?T.cap:'',f:t.fecha,v:(v==null||isNaN(v))?null:Math.round(v*100)/100,u:t.tipo==='fuerza'?'pts':t.tipo==='harvard'?'ml/kg/min':(r.unidad||''),cat:r.cat||'',s:(catScore(r.cat)!=null?catScore(r.cat):({ok:4,warn:3,bad:1.5})[r.cc]??null)}; });
   const meds=ofC('mediciones',cid).sort((x,y)=>x.fecha.localeCompare(y.fecha)).map(m=>({f:m.fecha,peso:m.peso,mm:m.masaMusc,mg:m.masaGrasa}));
   const wk={}; ofC('sesiones',cid).forEach(s=>{ if(s.fecha) { const k=wkKey(parseD(s.fecha)); wk[k]=(wk[k]||0)+1; } });
-  const plan={nombre:c.nombre.trim(),objetivos:a.objetivos,rutinas:a.rutinas,nutri:a.nutri,dias:a.dias,tnotas:a.tnotas,recs:a.recs,prog:{tests:tsx,meds,wk},u:Date.now()}; const G=gifsGet(); const up={...a.gifUp};
+  const ccS={ok:4,warn:3,bad:1.5}; const sc=r=>{ const s=catScore(r.cat); return s!=null?s:(ccS[r.cc]!=null?ccS[r.cc]:null); }; const unit=t=>t.tipo==='fuerza'?'pts':t.tipo==='harvard'?'ml/kg/min':((t.res||{}).unidad||'');
+  const byT={}; ofC('tests',cid).sort((x,y)=>x.fecha.localeCompare(y.fecha)).forEach(t=>{ (byT[t.tipo]=byT[t.tipo]||[]).push(t); });
+  const cards=Object.values(byT).map(arr=>{ const l=arr[arr.length-1], f0=arr[0], T=testById(l.tipo), r=l.res||{}; const lr=(l.v&&num(l.v.der)!=null&&num(l.v.izq)!=null)?{d:num(l.v.der),i:num(l.v.izq)}:null;
+    return {k:l.tipo,n:testName(l),d:T?T.d:'',cap:T?T.cap:'',f:l.fecha,v:valorOf(l),u:unit(l),dec:r.dec==null?1:r.dec,cat:r.cat||'',cc:r.cc||'',s:sc(r),lines:(r.lines||[]).map(x=>({l:x.l,v:x.v,t:x.t,c:x.c})),nota:r.nota||'',cnt:arr.length,f0:{f:f0.fecha,v:valorOf(f0)},lr}; }).filter(c=>c.v!=null&&!isNaN(c.v));
+  const gs={}; Object.keys(S.clientes).forEach(id=>{ const b={}; ofC('tests',id).sort((x,y)=>x.fecha.localeCompare(y.fecha)).forEach(t=>{ b[t.tipo]=t; }); const cp={}; Object.values(b).forEach(t=>{ const T=testById(t.tipo), s=sc(t.res||{}); if(T&&s!=null) (cp[T.cap]=cp[T.cap]||[]).push(s); }); Object.entries(cp).forEach(([k,v])=>{ (gs[k]=gs[k]||[]).push(v.reduce((p,q)=>p+q,0)/v.length); }); });
+  const grp={}; Object.entries(gs).forEach(([k,v])=>{ if(v.length>=3) grp[k]=Math.round(10*v.reduce((p,q)=>p+q,0)/v.length)/10; });
+  const plan={nombre:c.nombre.trim(),objetivos:a.objetivos,rutinas:a.rutinas,nutri:a.nutri,dias:a.dias,tnotas:a.tnotas,recs:a.recs,prog:{tests:tsx,meds,wk,cards,grp},u:Date.now()}; const G=gifsGet(); const up={...a.gifUp};
   try{
     for(const r of a.recs){ if(r.gif&&!up[r.gif]&&G[r.gif]){ await dCommit(CL,cloudSave,[dW(CL,`students/${a.sid}/data/g_${r.gif}`,{j:fS(G[r.gif]),u:fI(Date.now())})]); up[r.gif]=1; } }
     await dCommit(CL,cloudSave,[dW(CL,`students/${a.sid}/data/plan`,{j:fS(JSON.stringify(plan)),u:fI(plan.u)})]);
@@ -1336,7 +1348,7 @@ const CAPN={comp:'Composición',aer:'Aeróbica',cardio:'Cardiovascular',fuerza:'
 function capData(P){
   const T=((P.prog||{}).tests||[]).filter(t=>t.s!=null&&t.cap); const cap={};
   T.forEach(t=>{ const c=cap[t.cap]=cap[t.cap]||{id:t.cap,by:{}}; const b=c.by[t.k]=c.by[t.k]||{n:t.n,first:t,last:t}; b.last=t; });
-  return Object.values(cap).map(c=>{ const bs=Object.values(c.by); const avg=f=>bs.reduce((s,b)=>s+b[f].s,0)/bs.length; return {id:c.id,n:CAPN[c.id]||c.id,first:avg('first'),last:avg('last'),tests:bs}; });
+  return Object.values(cap).map(c=>{ const bs=Object.values(c.by); const avg=f=>bs.reduce((s,b)=>s+b[f].s,0)/bs.length; return {id:c.id,n:CAPN[c.id]||c.id,first:avg('first'),last:avg('last'),tests:bs,g:(P.prog.grp||{})[c.id]}; });
 }
 const scoreTxt=s=>s>=4.5?'Excelente':s>=3.5?'Buena':s>=2.5?'Regular':s>=1.5?'Baja':'Muy baja';
 function aRadar(D,sel){
@@ -1345,6 +1357,7 @@ function aRadar(D,sel){
   const pl=(f,fill,st,dash)=>`<polygon points="${D.map((d,i)=>Pt(i,d[f]/5).map(v=>v.toFixed(1)).join(',')).join(' ')}" fill="${fill}" stroke="${st}" stroke-width="2.2" stroke-linejoin="round" ${dash?'stroke-dasharray="5 4"':''}/>`;
   D.forEach((d,i)=>{ const a=Pt(i,1),b=Pt(i,1.22); g+=`<line x1="${cx}" y1="${cy}" x2="${a[0].toFixed(1)}" y2="${a[1].toFixed(1)}" stroke="var(--line)"/><text x="${b[0].toFixed(1)}" y="${(b[1]+4).toFixed(1)}" text-anchor="${Math.abs(b[0]-cx)<8?'middle':b[0]>cx?'start':'end'}" style="font-size:11px;${d.id===sel?'font-weight:800;fill:#ffd23f':''}">${esc(d.n)}</text>`; });
   if(D.some(d=>Math.abs(d.first-d.last)>.01)) g+=pl('first','rgba(160,160,190,.15)','#a0a0be',true);
+  if(D.every(d=>d.g!=null)) g+=`<polygon points="${D.map((d,i)=>Pt(i,d.g/5).map(v=>v.toFixed(1)).join(',')).join(' ')}" fill="none" stroke="#3fa9ff" stroke-width="2" stroke-dasharray="2 4" stroke-linecap="round"/>`;
   g+=pl('last','rgba(255,122,182,.30)','#ff8fc3',false);
   D.forEach((d,i)=>{ const q=Pt(i,d.last/5); g+=`<circle cx="${q[0].toFixed(1)}" cy="${q[1].toFixed(1)}" r="${d.id===sel?7:4.5}" fill="#ffd23f" stroke="#1a0b2e" stroke-width="1.5"/><circle cx="${q[0].toFixed(1)}" cy="${q[1].toFixed(1)}" r="18" fill="transparent" data-x="acap" data-v="${d.id}" style="cursor:pointer"/>`; });
   return `<svg class="ch" viewBox="0 0 ${W} ${H}" style="max-width:420px;margin:0 auto">${g}</svg>`;
@@ -1384,9 +1397,27 @@ function aWeeks(P){
   return `<svg class="ch" viewBox="0 0 ${W} ${H}">${g}</svg>`;
 }
 function aRing(done,tot){ const p=tot?done/tot:0, r=26, c=2*Math.PI*r; return `<svg width="70" height="70" viewBox="0 0 70 70"><circle cx="35" cy="35" r="${r}" fill="none" stroke="var(--line)" stroke-width="8"/><circle cx="35" cy="35" r="${r}" fill="none" stroke="#2ee6c5" stroke-width="8" stroke-linecap="round" stroke-dasharray="${(c*p).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 35 35)"/><text x="35" y="40" text-anchor="middle" style="font-size:14px;font-weight:800">${done}/${tot}</text></svg>`; }
+
+const CAPE={comp:'📏',aer:'🫁',cardio:'🫀',fuerza:'💪',pot:'⚡',flex:'🤸',equi:'⚖️',vel:'🏃'};
+const CC_T={ok:['🟢','¡Vas muy bien!','Sigue así: mantén la constancia para conservar este nivel.'],warn:['🟡','Nivel intermedio','Estás en un buen punto de partida. Con constancia puedes subir al siguiente nivel.'],bad:['🔴','Para trabajar','Es un área que vamos a reforzar juntos con tu profesor.']};
+function resumenCard(P){
+  const D=capData(P); const n=((P.prog||{}).cards||[]).length;
+  if(!D.length) return '';
+  const best=D.slice().sort((x,y)=>y.last-x.last)[0], low=D.slice().sort((x,y)=>x.last-y.last)[0];
+  return `<div class="card"><h3>Tu resumen</h3><div class="sm" style="margin-top:6px;line-height:1.55">Llevas <b>${n}</b> ${n===1?'test registrado':'tests registrados'}. Tu <b>punto fuerte</b> es ${CAPE[best.id]||''} <b>${esc(best.n)}</b>${D.length>1&&low.id!==best.id?` y lo que más puedes <b>mejorar</b> es ${CAPE[low.id]||''} <b>${esc(low.n)}</b>`:''}.</div><div class="row" style="margin-top:8px;flex-wrap:wrap"><span class="chip ok">🟢 Muy bien</span><span class="chip warn">🟡 Intermedio</span><span class="chip bad">🔴 Para trabajar</span></div></div>`;
+}
+function testCard(c){
+  const cc=c.cc||(c.s!=null?(c.s>=3.5?'ok':c.s>=2.5?'warn':'bad'):''); const T=CC_T[cc]; const dir=(c.cnt>1&&c.f0.v)?Math.round(100*(c.v-c.f0.v)/Math.abs(c.f0.v)):null;
+  let h=`<div class="tcard"><div class="row"><div class="tic">${CAPE[c.cap]||'📊'}</div><div class="grow"><b>${esc(c.n)}</b><div class="xs mut">${fdate(c.f)}${c.cat?' · '+esc(c.cat):''}</div></div>${T?`<span class="chip ${cc}">${T[0]} ${T[1]}</span>`:''}</div>
+  <div class="kpis"><div><small>${c.cnt>1?'Último':'Resultado'}</small><b>${fmt(c.v,c.dec)}<span> ${esc(c.u)}</span></b></div>${c.cnt>1?`<div><small>Primero</small><b>${fmt(c.f0.v,c.dec)}</b></div><div><small>Cambio</small><b>${dir>0?'▲ +':dir<0?'▼ ':''}${dir}%</b></div>`:''}</div>`;
+  if(c.lr){ const mx=Math.max(c.lr.d,c.lr.i)||1, df=Math.abs(c.lr.d-c.lr.i), pc=Math.round(100*df/mx); h+=`<div class="lr"><div class="xs mut">Derecha vs. izquierda</div><div class="lrrow"><span>Der.</span><i style="width:${100*c.lr.d/mx}%;background:#2ee6c5"></i><b>${fmt(c.lr.d,1)}</b></div><div class="lrrow"><span>Izq.</span><i style="width:${100*c.lr.i/mx}%;background:#3fa9ff"></i><b>${fmt(c.lr.i,1)}</b></div><div class="xs" style="margin-top:4px">${pc<=10?'👍 Ambos lados están parejos':'⚠️ Hay una diferencia de '+pc+'% entre lados'}</div></div>`; }
+  h+=(c.lines||[]).map(l=>`<div class="xs" style="margin-top:4px"><b>${esc(l.l)}:</b> ${esc(l.v)} ${l.t?'· '+esc(l.t):''}</div>`).join('');
+  h+=`<div class="explain"><b>💡 ¿Qué significa?</b><div>${esc(c.d)}. ${T?esc(T[2]):''}</div>${c.nota?`<div class="xs mut">${esc(c.nota)}</div>`:''}</div></div>`;
+  return h;
+}
 function capCards(P,withBars){
   const D=capData(P); if(!D.length) return `<div class="card"><h3>Tus capacidades</h3><div class="sm mut" style="margin-top:6px">Cuando tu profesor registre tus tests físicos, aquí verás tu pentagrama y tu avance.</div></div>`;
-  let h=`<div class="card"><h3>Tus capacidades</h3><div class="xs mut">Puntaje de 1 a 5 según tus tests. La línea punteada es tu primer test.</div>${D.length>=3?aRadar(D,AU.cap):aBars(D,AU.cap)}${capInfo(D,AU.cap)}</div>`;
+  let h=`<div class="card"><h3>Tus capacidades</h3><div class="xs mut">Mientras más grande el dibujo, mejor. Gris punteado: tu primer test${D.every(d=>d.g!=null)?' · Azul punteado: promedio del grupo':''}. Toca un punto para ver el detalle.</div>${D.length>=3?aRadar(D,AU.cap):aBars(D,AU.cap)}${capInfo(D,AU.cap)}</div>`;
   if(withBars&&D.length>=3) h+=`<div class="card"><h3>Primer test vs. último</h3>${aBars(D,AU.cap)}</div>`;
   return h;
 }
@@ -1405,7 +1436,7 @@ function aluRender(){
   if(AU.tab==='inicio'){
     const d=(P.dias||{})[today]; const wk=wkKey(new Date()); const am=(AL.animo||{})[today];
     h+=`<div class="card"><div class="xs mut">HOY · ${fdate(today)}</div>${d?`<div style="font-size:20px;font-weight:800;margin-top:4px">🏋️ ${esc(d.t)} <span class="sm mut">${esc(d.h||'')}</span></div>`:'<div style="font-size:18px;font-weight:700;margin-top:4px">Día de descanso 😌</div>'}${(P.tnotas||{})[today]?`<div class="note" style="margin-top:6px">💬 ${esc(P.tnotas[today])}</div>`:''}</div>`;
-    h+=capCards(P,false);
+    h+=resumenCard(P)+capCards(P,false);
     const rs=(P.recs||[]).filter(r=>(r.dias||[]).includes(ISO(new Date()))).sort((a,b)=>a.h.localeCompare(b.h)); const nowH=new Date().toTimeString().slice(0,5);
     if(rs.length) h+=`<div class="card"><h3>Recordatorios de hoy</h3>${rs.map(r=>`<div style="padding:8px 0;border-top:1px solid var(--line);${r.h<nowH?'opacity:.6':''}"><b>${esc(r.h)}</b> <span class="sm">${esc(r.msg)}</span>${r.gif?(AU.gif[r.gif]?mediaTag(AU.gif[r.gif]):'<div class="xs mut">cargando imagen…</div>'):''}</div>`).join('')}</div>`;
     const _dn=(P.objetivos||[]).filter(o=>(AL.ok||{})[wk+'|'+o.id]).length;
@@ -1426,7 +1457,7 @@ function aluRender(){
     else h+=`<button class="btn ghost sm" data-x="arut" data-v="" style="padding-left:0">← Rutinas</button><h2 style="margin:4px 0 8px">${esc(r.n)}</h2>${r.ej.map(e=>{ const th=exAnim(e.n,{size:56,follow:1}); return `<div class="card"><div class="row">${th?`<div class="exth" style="cursor:default">${th}</div>`:''}<div class="grow"><b>${esc(e.n)}</b><div class="xs mut">${esc(e.fase||'')}</div></div></div><div class="sm" style="margin-top:6px">${[e.s&&'Series: '+e.s,e.lb&&'Carga: '+e.lb+' lb',e.rpe&&'RPE '+e.rpe,e.rm&&e.rm+'% RM',e.fc&&e.fc+' FC máx',e.desc&&'Descanso '+e.desc].filter(Boolean).map(esc).join(' · ')}</div>${e.obs?`<div class="xs mut" style="margin-top:4px">${esc(e.obs)}</div>`:''}</div>`; }).join('')}`;
   }
   if(AU.tab==='prog'){
-    h+=capCards(P,true); const O=ptOpts(P);
+    h+=resumenCard(P)+capCards(P,true); const CD=(((P.prog||{}).cards)||[]); if(CD.length) h+=`<div style="margin:14px 0 4px"><h2>Tus tests</h2><div class="sm mut">Cada tarjeta te explica tu resultado en simple.</div></div>`+CD.map(testCard).join(''); const O=ptOpts(P);
     if(O.length){ const cur=O.find(x=>x.id===AU.tsel)||O[0]; h+=`<div class="card"><h3>Evolución</h3><div class="row" style="flex-wrap:wrap;margin:6px 0">${O.map(x=>`<button class="btn sm ${x.id===cur.id?'pri':''}" data-x="atsel" data-v="${x.id}">${esc(x.n.length>22?x.n.slice(0,22)+'…':x.n)}</button>`).join('')}</div><div class="xs mut">${esc(cur.n)}${cur.u?' ('+esc(cur.u)+')':''} · toca un punto</div>${aPoints(cur,AU.tsel===cur.id?AU.tpt:null)}</div>`; }
     h+=`<div class="card"><h3>Constancia: sesiones por semana</h3>${aWeeks(P)}</div>`;
   }
