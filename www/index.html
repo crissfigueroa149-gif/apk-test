@@ -1208,17 +1208,17 @@ async function xPull(cid){
     const f=await dGet(CL,cloudSave,`students/${sid}/data/alumno`); TA[cid]={alumno:f?JSON.parse(gS(f.j)||'{}'):{},t:Date.now()}; render();
   }catch(e){ toast(apiErr(e)); }
 }
-async function xPublish(cid){
-  const c=S.clientes[cid]; const a=appOf(c); if(!a.sid) return toast('El alumno aún no se registra con el código');
+async function xPublish(cid,silent){
+  const c=S.clientes[cid]; const a=appOf(c); if(!a.sid) return silent||toast('El alumno aún no se registra con el código');
   const tsx=ofC('tests',cid).sort((x,y)=>x.fecha.localeCompare(y.fecha)).map(t=>{ const T=testById(t.tipo), v=valorOf(t), r=t.res||{}; return {k:t.tipo,n:testName(t),cap:T?T.cap:'',f:t.fecha,v:(v==null||isNaN(v))?null:Math.round(v*100)/100,u:t.tipo==='fuerza'?'pts':t.tipo==='harvard'?'ml/kg/min':(r.unidad||''),cat:r.cat||'',s:catScore(r.cat)}; });
   const meds=ofC('mediciones',cid).sort((x,y)=>x.fecha.localeCompare(y.fecha)).map(m=>({f:m.fecha,peso:m.peso,mm:m.masaMusc,mg:m.masaGrasa}));
   const wk={}; ofC('sesiones',cid).forEach(s=>{ if(s.fecha) { const k=wkKey(parseD(s.fecha)); wk[k]=(wk[k]||0)+1; } });
-  const plan={nombre:c.nombre,objetivos:a.objetivos,rutinas:a.rutinas,nutri:a.nutri,dias:a.dias,tnotas:a.tnotas,recs:a.recs,prog:{tests:tsx,meds,wk},u:Date.now()}; const G=gifsGet(); const up={...a.gifUp};
+  const plan={nombre:c.nombre.trim(),objetivos:a.objetivos,rutinas:a.rutinas,nutri:a.nutri,dias:a.dias,tnotas:a.tnotas,recs:a.recs,prog:{tests:tsx,meds,wk},u:Date.now()}; const G=gifsGet(); const up={...a.gifUp};
   try{
     for(const r of a.recs){ if(r.gif&&!up[r.gif]&&G[r.gif]){ await dCommit(CL,cloudSave,[dW(CL,`students/${a.sid}/data/g_${r.gif}`,{j:fS(G[r.gif]),u:fI(Date.now())})]); up[r.gif]=1; } }
     await dCommit(CL,cloudSave,[dW(CL,`students/${a.sid}/data/plan`,{j:fS(JSON.stringify(plan)),u:fI(plan.u)})]);
-    const cc=clone(S.clientes[cid]); cc.app.gifUp=up; cc.app.pubAt=plan.u; put('clientes',cid,cc); toast('Enviado al alumno');
-  }catch(e){ toast(apiErr(e)); }
+    const cc=clone(S.clientes[cid]); cc.app.gifUp=up; cc.app.pubAt=plan.u; cc.app.ph=planHash(cid); put('clientes',cid,cc); if(!silent) toast('Enviado al alumno');
+  }catch(e){ if(!silent) toast(apiErr(e)); }
 }
 async function xAct(a,el){
   const id=el.dataset.id, v=el.dataset.v, i=Number(el.dataset.i); const g=x=>{ const e=document.getElementById(x); return e?e.value:''; };
@@ -1245,6 +1245,18 @@ async function xAct(a,el){
     case 'dayclr': edit(x=>{ delete x.dias[ui.ad]; }); break;
   }
 }
+
+/* envío automático al alumno cuando cambia algo */
+let autoT=0;
+function autoPub(){
+  if(ROLE!=='profe'||dbh||!fbOn()||!CL.user) return; clearTimeout(autoT);
+  autoT=setTimeout(async()=>{ for(const [id,c] of Object.entries(S.clientes)){ const a=c.app; if(!a||!a.sid) continue; const h=planHash(id); if(h&&h!==a.ph) await xPublish(id,true); } },3500);
+}
+function planHash(cid){
+  const c=S.clientes[cid], a=appOf(c); const tsx=ofC('tests',cid).map(t=>[t.id,t.fecha,valorOf(t),(t.res||{}).cat]), meds=ofC('mediciones',cid).map(m=>[m.id,m.fecha,m.peso,m.masaMusc,m.masaGrasa]), ses=ofC('sesiones',cid).map(s=>s.fecha);
+  return hsh(JSON.stringify([c.nombre,a.objetivos,a.rutinas,a.nutri,a.dias,a.tnotas,a.recs,tsx,meds,ses]));
+}
+{ const _pl=persistLocal; persistLocal=function(){ _pl.apply(this,arguments); try{ autoPub(); }catch(e){} }; }
 /* ===================== ALUMNO ===================== */
 const LS_ST='entrenabilidad_alumno';
 function stGet(){ let s={}; try{ s=JSON.parse(localStorage.getItem(LS_ST)||'{}')||{}; }catch(e){} s.alumno=s.alumno||{}; return s; }
@@ -1362,7 +1374,7 @@ function aluRender(){
   }
   const P=ST.plan||{}; const AL=ST.alumno; const today=ymd(new Date());
   const tabs=[['inicio','Inicio',ICON.hoy],['cal','Calendario',ICON.asistencia],['prog','Progreso',ICON.progreso||ICON.tests],['rut','Rutinas',ICON.tests],['comida','Comida',ICON.guias],['perfil','Perfil',ICON.clientes]];
-  let h=`<div class="top"><div><h1>Hola, ${esc(((AL.perfil&&AL.perfil.nombre)||ST.nombre||'').split(' ')[0]||'')} 👋</h1><div class="sub">${AU.msg==='sync'?'Actualizando…':AU.msg==='err'?'Sin conexión: '+esc(AU.err||''):ST.last?'Actualizado '+new Date(ST.last).toTimeString().slice(0,5):''}</div></div><button class="btn sm" data-x="async">↻</button></div>`;
+  let h=`<div class="top"><div><h1>Hola, ${esc(((AL.perfil&&AL.perfil.nombre)||P.nombre||ST.nombre||'').split(' ')[0]||'')} 👋</h1><div class="sub">${AU.msg==='sync'?'Actualizando…':AU.msg==='err'?'Sin conexión: '+esc(AU.err||''):ST.last?'Actualizado '+new Date(ST.last).toTimeString().slice(0,5):''}</div></div><button class="btn sm" data-x="async">↻</button></div>`;
   if(AU.tab==='inicio'){
     const d=(P.dias||{})[today]; const wk=wkKey(new Date()); const am=(AL.animo||{})[today];
     h+=`<div class="card"><div class="xs mut">HOY · ${fdate(today)}</div>${d?`<div style="font-size:20px;font-weight:800;margin-top:4px">🏋️ ${esc(d.t)} <span class="sm mut">${esc(d.h||'')}</span></div>`:'<div style="font-size:18px;font-weight:700;margin-top:4px">Día de descanso 😌</div>'}${(P.tnotas||{})[today]?`<div class="note" style="margin-top:6px">💬 ${esc(P.tnotas[today])}</div>`:''}</div>`;
@@ -1392,7 +1404,7 @@ function aluRender(){
     h+=`<div class="card"><h3>Constancia: sesiones por semana</h3>${aWeeks(P)}</div>`;
   }
   if(AU.tab==='comida') h+=`<div class="card"><h3>Recomendaciones alimenticias</h3><div class="sm" style="white-space:pre-wrap;margin-top:8px">${esc(P.nutri||'Tu profesor aún no dejó recomendaciones.')}</div></div>`;
-  if(AU.tab==='perfil'){ const p=AL.perfil||{}; const F=(k,l,t)=>`<div><label>${l}</label><input data-xc="aperfil" data-k="${k}" type="${t||'text'}" value="${esc(p[k]!=null?p[k]:(k==='nombre'?ST.nombre||'':''))}"></div>`;
+  if(AU.tab==='perfil'){ const p=AL.perfil||{}; const F=(k,l,t)=>`<div><label>${l}</label><input data-xc="aperfil" data-k="${k}" type="${t||'text'}" value="${esc(p[k]!=null?p[k]:(k==='nombre'?(P.nombre||ST.nombre||''):''))}"></div>`;
     h+=`<div class="card"><h3>Mis datos personales</h3><div class="f">${F('nombre','Nombre')}${F('edad','Edad','number')}${F('peso','Peso (kg)','number')}${F('estatura','Estatura (cm)','number')}${F('tel','Teléfono','tel')}</div><div class="xs mut" style="margin-top:6px">Tu profesor ve estos datos. Se guardan al salir del campo.</div></div><div class="card"><div class="sm">Cuenta: <b>${esc(ST.user.email||'')}</b></div><button class="btn bad" style="margin-top:8px" data-x="aout">Cerrar sesión</button></div>`; }
   app.innerHTML=h+`<nav class="nav">${tabs.map(t=>`<button class="${AU.tab===t[0]?'on':''}" data-x="atab" data-v="${t[0]}">${t[2]}<span>${t[1]}</span></button>`).join('')}</nav><button class="modebtn" data-x="role" data-v="">⇄ Modo</button>`;
 }
