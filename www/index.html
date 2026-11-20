@@ -1241,6 +1241,13 @@ async function xPull(cid){
     const f=await dGet(CL,cloudSave,`students/${sid}/data/alumno`); TA[cid]={alumno:f?JSON.parse(gS(f.j)||'{}'):{},t:Date.now()}; render();
   }catch(e){ toast(apiErr(e)); }
 }
+function sesRut(cid){
+  const L=ofC('sesiones',cid).filter(s=>s.fecha).sort((x,y)=>y.fecha.localeCompare(x.fecha)).slice(0,8); const rutinas=[], dias={};
+  L.forEach(s=>{ const ej=(s.ejercicios||[]).filter(e=>e.n).map(e=>{ const ser=(e.series||[]); const o=ser.map(z=>z.obj).filter(Boolean); let st=o.length?(o.every(z=>z===o[0])?o.length+' × '+o[0]:o.join(' · ')):ser.map(z=>(num(z.reps)?z.reps:'')+(num(z.lb)?'×'+z.lb+'lb':'')).filter(Boolean).join(' · ');
+      return {n:e.n,fase:e.fase||'',s:st,lb:e.lbObj||'',rpe:e.rpe||'',rm:e.rm||'',fc:e.fc||'',desc:e.desc||'',obs:e.obs||''}; });
+    if(!ej.length) return; const t=s.area||'Entrenamiento'; rutinas.push({id:'s'+s.id,n:fdate(s.fecha)+' · '+t,ej}); if(!dias[s.fecha]) dias[s.fecha]={t,h:'18:00'}; });
+  return {rutinas,dias};
+}
 async function xPublish(cid,silent){
   const c=S.clientes[cid]; const a=appOf(c); if(!a.sid) return silent||toast('El alumno aún no se registra con el código');
   const tsx=ofC('tests',cid).sort((x,y)=>x.fecha.localeCompare(y.fecha)).map(t=>{ const T=testById(t.tipo), v=valorOf(t), r=t.res||{}; return {k:t.tipo,n:testName(t),cap:T?T.cap:'',f:t.fecha,v:(v==null||isNaN(v))?null:Math.round(v*100)/100,u:t.tipo==='fuerza'?'pts':t.tipo==='harvard'?'ml/kg/min':(r.unidad||''),cat:r.cat||'',s:(catScore(r.cat)!=null?catScore(r.cat):({ok:4,warn:3,bad:1.5})[r.cc]??null)}; });
@@ -1252,7 +1259,8 @@ async function xPublish(cid,silent){
     return {k:l.tipo,n:testName(l),d:T?T.d:'',cap:T?T.cap:'',f:l.fecha,v:valorOf(l),u:unit(l),dec:r.dec==null?1:r.dec,cat:r.cat||'',cc:r.cc||'',s:sc(r),lines:(r.lines||[]).map(x=>({l:x.l,v:x.v,t:x.t,c:x.c})),nota:r.nota||'',cnt:arr.length,f0:{f:f0.fecha,v:valorOf(f0)},lr}; }).filter(c=>c.v!=null&&!isNaN(c.v));
   const gs={}; Object.keys(S.clientes).forEach(id=>{ const b={}; ofC('tests',id).sort((x,y)=>x.fecha.localeCompare(y.fecha)).forEach(t=>{ b[t.tipo]=t; }); const cp={}; Object.values(b).forEach(t=>{ const T=testById(t.tipo), s=sc(t.res||{}); if(T&&s!=null) (cp[T.cap]=cp[T.cap]||[]).push(s); }); Object.entries(cp).forEach(([k,v])=>{ (gs[k]=gs[k]||[]).push(v.reduce((p,q)=>p+q,0)/v.length); }); });
   const grp={}; Object.entries(gs).forEach(([k,v])=>{ if(v.length>=3) grp[k]=Math.round(10*v.reduce((p,q)=>p+q,0)/v.length)/10; });
-  const plan={nombre:c.nombre.trim(),objetivos:a.objetivos,rutinas:a.rutinas,nutri:a.nutri,dias:a.dias,tnotas:a.tnotas,recs:a.recs,prog:{tests:tsx,meds,wk,cards,grp},u:Date.now()}; const G=gifsGet(); const up={...a.gifUp};
+  const sr=sesRut(cid); const dias2={...sr.dias,...a.dias};
+  const plan={nombre:c.nombre.trim(),objetivos:a.objetivos,rutinas:[...(a.rutinas||[]),...sr.rutinas],nutri:a.nutri,dias:dias2,tnotas:a.tnotas,recs:a.recs,prog:{tests:tsx,meds,wk,cards,grp},u:Date.now()}; const G=gifsGet(); const up={...a.gifUp};
   try{
     for(const r of a.recs){ if(r.gif&&!up[r.gif]&&G[r.gif]){ await dCommit(CL,cloudSave,[dW(CL,`students/${a.sid}/data/g_${r.gif}`,{j:fS(G[r.gif]),u:fI(Date.now())})]); up[r.gif]=1; } }
     await dCommit(CL,cloudSave,[dW(CL,`students/${a.sid}/data/plan`,{j:fS(JSON.stringify(plan)),u:fI(plan.u)})]);
@@ -1294,7 +1302,7 @@ function autoPub(){
 }
 function planHash(cid){
   const c=S.clientes[cid], a=appOf(c); const tsx=ofC('tests',cid).map(t=>[t.id,t.fecha,valorOf(t),(t.res||{}).cat]), meds=ofC('mediciones',cid).map(m=>[m.id,m.fecha,m.peso,m.masaMusc,m.masaGrasa]), ses=ofC('sesiones',cid).map(s=>s.fecha);
-  return hsh(JSON.stringify([c.nombre,a.objetivos,a.rutinas,a.nutri,a.dias,a.tnotas,a.recs,tsx,meds,ses]));
+  return hsh(JSON.stringify([c.nombre,a.objetivos,a.rutinas,a.nutri,a.dias,a.tnotas,a.recs,tsx,meds,ses,hsh(JSON.stringify(ofC('sesiones',cid)))]));
 }
 { const _pl=persistLocal; persistLocal=function(){ _pl.apply(this,arguments); try{ autoPub(); }catch(e){} }; }
 /* ===================== ALUMNO ===================== */
