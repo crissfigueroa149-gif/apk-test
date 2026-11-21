@@ -1473,12 +1473,11 @@ function aluRender(){
   if(AU.tab==='rut'){
     const H=mergeH(P.hechos,AL.hechos); const isD=(rid,j)=>{ const o=H[rid+'|'+j]; return !!(o&&!o.x); };
     const R=(P.rutinas||[]).filter(x=>x.ej.some((e,j)=>!isD(x.id,j))); const r=R.find(x=>x.id===AU.rut);
-    if(!r) h+=R.map(x=>{ const n=x.ej.filter((e,j)=>!isD(x.id,j)).length; return `<button class="card rutb" data-x="arut" data-v="${x.id}"><b>${esc(x.n)}</b><div class="xs mut">${n} por hacer · toca para ver</div></button>`; }).join('')||'<div class="empty">No tienes rutinas pendientes 🎉</div>';
+    if(!r) h+=R.map(x=>{ const n=x.ej.filter((e,j)=>!isD(x.id,j)).length; return `<button class="card rutb" data-x="arut" data-v="${x.id}"><b>${esc(x.n)}</b><div class="xs mut">${n} por hacer · toca para ver</div></button>`; }).join('')||'<div class="empty">No tienes rutinas pendientes 🎉<div class="xs mut" style="margin-top:6px">Tu historial de ejercicios está en Progreso.</div></div>';
     else h+=`<button class="btn ghost sm" data-x="arut" data-v="" style="padding-left:0">← Rutinas</button><h2 style="margin:4px 0 8px">${esc(r.n)}</h2>${r.ej.map((e,j)=>{ if(isD(r.id,j)) return ''; const th=exAnim(e.n,{size:56,follow:1}); return `<div class="card"><div class="row">${th?`<div class="exth" style="cursor:default">${th}</div>`:''}<div class="grow"><b>${esc(e.n)}</b><div class="xs mut">${esc(e.fase||'')}</div></div></div><div class="sm" style="margin-top:6px">${[e.s&&'Series: '+e.s,e.lb&&'Carga: '+e.lb+' lb',e.rpe&&'RPE '+e.rpe,e.rm&&e.rm+'% RM',e.fc&&e.fc+' FC máx',e.desc&&'Descanso '+e.desc].filter(Boolean).map(esc).join(' · ')}</div>${e.obs?`<div class="xs mut" style="margin-top:4px">${esc(e.obs)}</div>`:''}<button class="btn pri" style="margin-top:8px;width:100%" data-x="aex" data-v="${r.id}" data-i="${j}">✓ Ya lo hice</button></div>`; }).join('')}`;
-    if(!r) h+=`<div class="card" style="margin-top:12px"><h3>Historial</h3>${histHTML(H,'aexundo','')}</div>`;
   }
   if(AU.tab==='prog'){
-    h+=resumenCard(P)+capCards(P,true); const CD=(((P.prog||{}).cards)||[]); if(CD.length) h+=`<div style="margin:14px 0 4px"><h2>Tus tests</h2><div class="sm mut">Cada tarjeta te explica tu resultado en simple.</div></div>`+CD.map(testCard).join(''); const O=ptOpts(P);
+    h+=resumenCard(P)+capCards(P,true); const CD=(((P.prog||{}).cards)||[]); if(CD.length) h+=`<div style="margin:14px 0 4px"><h2>Tus tests</h2><div class="sm mut">Cada tarjeta te explica tu resultado en simple.</div></div>`+CD.map(testCard).join(''); h+=`<div class="card"><h3>Historial de ejercicios</h3><div class="xs mut">Lo que ya completaste. Aquí queda guardado.</div>${histHTML(mergeH(P.hechos,AL.hechos),'aexundo','')}</div>`; const O=ptOpts(P);
     if(O.length){ const cur=O.find(x=>x.id===AU.tsel)||O[0]; h+=`<div class="card"><h3>Evolución</h3><div class="row" style="flex-wrap:wrap;margin:6px 0">${O.map(x=>`<button class="btn sm ${x.id===cur.id?'pri':''}" data-x="atsel" data-v="${x.id}">${esc(x.n.length>22?x.n.slice(0,22)+'…':x.n)}</button>`).join('')}</div><div class="xs mut">${esc(cur.n)}${cur.u?' ('+esc(cur.u)+')':''} · toca un punto</div>${aPoints(cur,AU.tsel===cur.id?AU.tpt:null)}</div>`; }
     h+=`<div class="card"><h3>Constancia: sesiones por semana</h3>${aWeeks(P)}</div>`;
   }
@@ -1739,7 +1738,7 @@ function sSesiones(c){
   if(!ses.length) return h+`<div class="card empty">Todavía no hay sesiones registradas para ${esc(c.nombre)}.</div>`;
   h+=exProgress(c);
   ses.forEach(s=>{ const st=sessStats(s);
-    h+=`<div class="card ptr" data-a="editsess" data-id="${s.id}"><div class="row between"><div><b>${fdate(s.fecha)}</b> · ${esc(s.area||'')}<div class="sm mut">${(s.ejercicios||[]).filter(e=>e.fase==='Parte principal').length} ejercicios principales · ${st.series} series · ${st.reps} reps</div></div><div style="text-align:right"><div><b>${st.ton?fmt(st.ton,0)+' lb':'–'}</b></div><div class="xs mut">${st.srpe?'carga '+st.srpe:''}</div></div></div></div>`; });
+    h+=`<div class="card ptr" data-a="editsess" data-id="${s.id}"><div class="row between"><div><b>${fdate(s.fecha)}</b> · ${esc(s.area||'')}<div class="sm mut">${(s.ejercicios||[]).filter(e=>e.fase==='Parte principal').length} ejercicios principales · ${st.series} series · ${st.reps} reps</div></div><div style="text-align:right"><div><b>${st.ton?fmt(st.ton,0)+' lb':'–'}</b></div><div class="xs mut">${st.srpe?'carga '+st.srpe:''}</div></div></div>${ui.sdel===s.id?`<div class="row" style="margin-top:8px;gap:8px"><span class="sm grow">¿Eliminar esta sesión?</span><button class="btn sm bad" data-a="sesdel" data-id="${s.id}">Sí, eliminar</button><button class="btn sm ghost" data-a="sesno" data-id="${s.id}">No</button></div>`:`<div style="text-align:right;margin-top:4px"><button class="btn sm ghost bad" data-a="sesask" data-id="${s.id}">🗑 Eliminar</button></div>`}</div>`; });
   return h;
 }
 
@@ -2137,6 +2136,9 @@ document.addEventListener('click',e=>{
       const d=clone(ui.d); if(!d.cid){ toast('Elige un cliente'); break; }
       d.ejercicios=d.ejercicios.filter(e=>String(e.n||'').trim()); const sid=d._id||uid(); delete d._new; delete d._id;
       ui.modal=null; ui.d=null; put('sesiones',sid,d); render(true); toast('Sesión guardada'); break; }
+    case 'sesask': ui.sdel=id; render(true); break;
+    case 'sesno': ui.sdel=null; render(true); break;
+    case 'sesdel': ui.sdel=null; del('sesiones',id); render(true); break;
     case 'delsess': case 'delsess_ok': if(a==='delsess'){ ui.confirm='delsess:'+id; render(true); break; } ui.modal=null; ui.d=null; del('sesiones',id); render(true); break;
     case 'savetpl': {
       const nm=prompt2(); break; }
