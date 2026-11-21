@@ -53,6 +53,11 @@ h1{font-size:24px;background:var(--grad);-webkit-background-clip:text;background
 .kpis>div{background:var(--card-s);border-radius:12px;padding:8px 10px}.kpis small{display:block;font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.04em}.kpis b{font-size:20px}.kpis b span{font-size:12px;font-weight:500;color:var(--mut)}
 .lr{background:var(--card-s);border-radius:12px;padding:10px;margin:8px 0}.lrrow{display:flex;align-items:center;gap:8px;margin-top:6px;font-size:13px}.lrrow span{width:30px;color:var(--mut)}.lrrow i{height:12px;border-radius:6px;display:block;min-width:4px}
 .explain{background:rgba(255,210,63,.08);border:1px solid rgba(255,210,63,.25);border-radius:12px;padding:10px;margin-top:8px;font-size:14px;line-height:1.5}
+.seg{display:flex;gap:6px;background:var(--card-s);padding:4px;border-radius:14px;margin:4px 0 10px}.seg button{flex:1;border:0;background:transparent;color:var(--mut);padding:9px 4px;border-radius:10px;font-weight:600;font-size:13px}.seg button.on{background:var(--card);color:var(--txt,#fff);box-shadow:0 1px 6px rgba(0,0,0,.3)}
+.sbar{display:grid;grid-template-columns:22px 1fr 30px;gap:2px 8px;align-items:center;margin:6px 0}.sbar small{grid-column:2/4;font-size:11px;color:var(--mut);margin-top:-4px}.sbt{height:9px;background:var(--line);border-radius:6px;overflow:hidden}.sbt i{display:block;height:100%;border-radius:6px}
+.ins{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px;border-top:1px solid var(--line);padding-top:10px}.ins b{font-size:13px}
+.wkstrip{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-top:8px}.wd{text-align:center}.wd small{display:block;color:var(--mut);font-size:11px;margin-bottom:4px}.wd span{display:flex;align-items:center;justify-content:center;height:34px;border-radius:50%;background:var(--card-s);font-size:15px}.wd span.ok{background:#1fc46a;color:#fff;font-weight:800}.wd span.pl{background:rgba(255,210,63,.18)}.wd.tod span{outline:2px solid #ff7ab6}
+.mrow{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--line)}.mic{width:40px;height:40px;border-radius:12px;background:var(--card-s);display:flex;align-items:center;justify-content:center;font-size:20px;flex:none}.rpill{color:#fff;font-weight:800;border-radius:16px;padding:6px 12px;font-size:14px}
 .nav{position:fixed;left:0;right:0;bottom:0;background:rgba(14,8,30,.96);border-top:1px solid var(--line);display:flex;justify-content:center;z-index:5;padding-bottom:env(safe-area-inset-bottom)}
 .nav button{flex:1;max-width:180px;background:none;border:0;padding:10px 4px 9px;color:var(--mut);font:inherit;font-size:12px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px}
 .nav button svg{width:22px;height:22px}
@@ -1248,6 +1253,15 @@ const hDone=H=>Object.entries(H).filter(([k,v])=>!v.x);
 function allRut(cid){ const a=appOf(S.clientes[cid]); const oc=a.ocultas||[]; return [...(a.rutinas||[]).map((r,i)=>({...r,mi:i})),...sesRut(cid).rutinas.filter(r=>!oc.includes(r.id))]; }
 function histHTML(H,undo,ex){ const L=hDone(H).sort((x,y)=>y[1].t-x[1].t); if(!L.length) return '<div class="sm mut" style="margin:6px 0">Aún no hay ejercicios completados.</div>';
   return L.slice(0,60).map(([k,v])=>`<div class="row between" style="padding:6px 0;border-top:1px solid var(--line)"><div><b class="sm">✅ ${esc(v.n)}</b><div class="xs mut">${fdate(v.d)} · ${esc(v.r||'')}${v.s?' · '+esc(v.s):''}${v.by==='p'?' · marcado por el profesor':''}</div></div><button class="btn sm ghost" data-x="${undo}" ${ex} data-k="${esc(k)}">↩</button></div>`).join(''); }
+const MUSG=['Pecho','Hombros','Espalda','Bíceps','Tríceps','Cuádriceps','Isquios','Glúteos','Pantorrillas','Core'];
+const MUSE={Pecho:'🫁',Hombros:'🏋️',Espalda:'🔙',Bíceps:'💪',Tríceps:'💪',Cuádriceps:'🦵',Isquios:'🦵',Glúteos:'🍑',Pantorrillas:'🦶',Core:'🎯'};
+function muscleOf(nm){ const s=String(nm||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,''); const o=[]; const T=(g,r)=>{ if(r.test(s)&&!o.includes(g)) o.push(g); };
+  T('Pecho',/pecho|chest|banca|flexion|apertura|pec deck|\bfly\b|cruce/); T('Hombros',/militar|hombro|elevacion(es)? (lateral|frontal)|arnold|face pull|vuelos|pajaro/);
+  T('Espalda',/remo|dominada|jalon|polea al pecho|pull ?over|espalda|\blat\b|peso muerto|hiperextension/); if(!/femoral|isquio|pierna|camilla|leg/.test(s)) T('Bíceps',/curl|bicep|martillo/);
+  T('Tríceps',/tricep|fondos|pushdown|frances|patada de tricep/); T('Cuádriceps',/sentadilla|prensa|extension de pierna|leg ext|zancada|estocada|smith|hack|squat|cuadr|aductor/);
+  T('Isquios',/isquio|femoral|peso muerto|camilla|leg curl|buenos dias/); T('Glúteos',/gluteo|hip thrust|puente|abduccion|elevacion de cadera|patada/);
+  T('Pantorrillas',/pantorrilla|gemelo|talones|soleo/); T('Core',/abdomin|plancha|crunch|core|oblic|elevacion de piernas|dead bug|bird|rueda/); return o; }
+function musFromSes(cid){ const now=Date.now(), m={}; ofC('sesiones',cid).forEach(s=>{ if(!s.fecha) return; const age=(now-parseD(s.fecha))/864e5; (s.ejercicios||[]).forEach(e=>{ const sets=(e.series||[]).length||1; muscleOf(e.n).forEach(g=>{ const o=m[g]=m[g]||{l:'',v:0}; if(!o.l||s.fecha>o.l) o.l=s.fecha; if(age<=30) o.v+=sets; }); }); }); return m; }
 function sesRut(cid){
   const L=ofC('sesiones',cid).filter(s=>s.fecha).sort((x,y)=>y.fecha.localeCompare(x.fecha)).slice(0,8); const rutinas=[], dias={};
   L.forEach(s=>{ const ej=(s.ejercicios||[]).filter(e=>e.n).map(e=>{ const ser=(e.series||[]); const o=ser.map(z=>z.obj).filter(Boolean); let st=o.length?(o.every(z=>z===o[0])?o.length+' × '+o[0]:o.join(' · ')):ser.map(z=>(num(z.reps)?z.reps:'')+(num(z.lb)?'×'+z.lb+'lb':'')).filter(Boolean).join(' · ');
@@ -1267,7 +1281,7 @@ async function xPublish(cid,silent){
   const gs={}; Object.keys(S.clientes).forEach(id=>{ const b={}; ofC('tests',id).sort((x,y)=>x.fecha.localeCompare(y.fecha)).forEach(t=>{ b[t.tipo]=t; }); const cp={}; Object.values(b).forEach(t=>{ const T=testById(t.tipo), s=sc(t.res||{}); if(T&&s!=null) (cp[T.cap]=cp[T.cap]||[]).push(s); }); Object.entries(cp).forEach(([k,v])=>{ (gs[k]=gs[k]||[]).push(v.reduce((p,q)=>p+q,0)/v.length); }); });
   const grp={}; Object.entries(gs).forEach(([k,v])=>{ if(v.length>=3) grp[k]=Math.round(10*v.reduce((p,q)=>p+q,0)/v.length)/10; });
   const sr=sesRut(cid); const dias2={...sr.dias,...a.dias};
-  const plan={nombre:c.nombre.trim(),objetivos:a.objetivos,rutinas:[...(a.rutinas||[]),...sr.rutinas.filter(r=>!(a.ocultas||[]).includes(r.id))],hechos:a.hechos||{},nutri:a.nutri,dias:dias2,tnotas:a.tnotas,recs:a.recs,prog:{tests:tsx,meds,wk,cards,grp},u:Date.now()}; const G=gifsGet(); const up={...a.gifUp};
+  const plan={nombre:c.nombre.trim(),objetivos:a.objetivos,rutinas:[...(a.rutinas||[]),...sr.rutinas.filter(r=>!(a.ocultas||[]).includes(r.id))],hechos:a.hechos||{},mus:musFromSes(cid),macro:(S.macros[cid]?{meta:S.macros[cid].meta||'',inicio:S.macros[cid].inicio||'',semanas:S.macros[cid].semanas}:null),nutri:a.nutri,dias:dias2,tnotas:a.tnotas,recs:a.recs,prog:{tests:tsx,meds,wk,cards,grp},u:Date.now()}; const G=gifsGet(); const up={...a.gifUp};
   try{
     for(const r of a.recs){ if(r.gif&&!up[r.gif]&&G[r.gif]){ await dCommit(CL,cloudSave,[dW(CL,`students/${a.sid}/data/g_${r.gif}`,{j:fS(G[r.gif]),u:fI(Date.now())})]); up[r.gif]=1; } }
     await dCommit(CL,cloudSave,[dW(CL,`students/${a.sid}/data/plan`,{j:fS(JSON.stringify(plan)),u:fI(plan.u)})]);
@@ -1312,7 +1326,7 @@ function autoPub(){
 }
 function planHash(cid){
   const c=S.clientes[cid], a=appOf(c); const tsx=ofC('tests',cid).map(t=>[t.id,t.fecha,valorOf(t),(t.res||{}).cat]), meds=ofC('mediciones',cid).map(m=>[m.id,m.fecha,m.peso,m.masaMusc,m.masaGrasa]), ses=ofC('sesiones',cid).map(s=>s.fecha);
-  return hsh(JSON.stringify([c.nombre,a.objetivos,a.rutinas,a.nutri,a.dias,a.tnotas,a.recs,a.hechos,a.ocultas,tsx,meds,ses,hsh(JSON.stringify(ofC('sesiones',cid)))]));
+  return hsh(JSON.stringify([c.nombre,a.objetivos,a.rutinas,a.nutri,a.dias,a.tnotas,a.recs,a.hechos,a.ocultas,musFromSes(cid),S.macros[cid],tsx,meds,ses,hsh(JSON.stringify(ofC('sesiones',cid)))]));
 }
 { const _pl=persistLocal; persistLocal=function(){ _pl.apply(this,arguments); try{ autoPub(); }catch(e){} }; }
 /* ===================== ALUMNO ===================== */
@@ -1434,6 +1448,33 @@ function testCard(c){
   h+=`<div class="explain"><b>💡 ¿Qué significa?</b><div>${esc(c.d)}. ${T?esc(T[2]):''}</div>${c.nota?`<div class="xs mut">${esc(c.nota)}</div>`:''}</div></div>`;
   return h;
 }
+const PCOL={'Adaptación':'#3fa9ff','Hipertrofia':'#ff7ab6','Resistencia':'#2ee6c5','Combinado':'#ffd23f','Fuerza':'#ff9f43','Descarga':'#a0a0be'};
+function musData(P,H){ const now=Date.now(), mp=P.mus||{}, hm={}; hDone(H).forEach(([k,v])=>{ muscleOf(v.n).forEach(g=>{ const o=hm[g]=hm[g]||{l:'',v:0}; if(!o.l||v.d>o.l) o.l=v.d; if(now-parseD(v.d)<=30*864e5) o.v++; }); });
+  return MUSG.map(g=>{ const p=mp[g]||{l:'',v:0}, h=hm[g]||{l:'',v:0}; const l=(p.l||'')>(h.l||'')?p.l:h.l; const v=Math.max(p.v||0,h.v||0); let rec=100; if(l){ const hrs=Math.max(0,(now-new Date(l+'T12:00:00').getTime())/36e5); rec=Math.min(100,Math.round(100*hrs/48)); } return {g,l,v,rec}; }); }
+function macroInfo(P){ const m=P.macro; if(!m||!m.inicio||!(m.semanas||[]).length) return null; const wk=Math.floor((parseD(ymd(new Date()))-parseD(m.inicio))/(7*864e5)); return {m,wk,n:m.semanas.length,cur:m.semanas[wk]||null}; }
+function scoreData(P,AL){ const H=mergeH(P.hechos,AL.hechos), today=new Date(); const wk=((P.prog||{}).wk||{})[wkKey(today)]||0; const wkk=wkKey(today);
+  const planned=Object.keys(P.dias||{}).filter(d=>wkKey(parseD(d))===wkk).length; const hd=new Set(hDone(H).filter(([k,v])=>wkKey(parseD(v.d))===wkk).map(([k,v])=>v.d)); const done=Math.max(wk,hd.size); const target=Math.max(1,planned||3);
+  const con=Math.min(100,Math.round(100*done/target)); const md=musData(P,H).filter(x=>x.l); const rec=md.length?Math.round(md.reduce((s,x)=>s+x.rec,0)/md.length):100;
+  const D=capData(P); const cond=D.length?Math.round(D.reduce((s,x)=>s+x.last,0)/D.length*20):null; const parts=[con,rec].concat(cond!=null?[cond]:[]); const tot=Math.round(parts.reduce((s,x)=>s+x,0)/parts.length);
+  return {tot,con,rec,cond,done,target,md}; }
+function scoreRing(v){ const r=54,c=2*Math.PI*r; return `<svg width="140" height="140" viewBox="0 0 140 140"><circle cx="70" cy="70" r="${r}" fill="none" stroke="var(--line)" stroke-width="12"/><circle cx="70" cy="70" r="${r}" fill="none" stroke="url(#sg)" stroke-width="12" stroke-linecap="round" stroke-dasharray="${(c*v/100).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 70 70)"/><defs><linearGradient id="sg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff7ab6"/><stop offset="1" stop-color="#ffd23f"/></linearGradient></defs><text x="70" y="76" text-anchor="middle" style="font-size:38px;font-weight:800">${v}</text><text x="70" y="96" text-anchor="middle" style="font-size:11px;fill:var(--mut)">de 100</text></svg>`; }
+const sbar=(ic,l,v,col)=>`<div class="sbar"><span>${ic}</span><div class="sbt"><i style="width:${v}%;background:${col}"></i></div><b>${v}</b><small>${l}</small></div>`;
+function insightTxt(P,S2){ const mi=macroInfo(P); let ins,rec;
+  if(S2.done>=S2.target) ins='¡Cumpliste tu meta de entrenamientos de esta semana! 🎉'; else ins='Esta semana llevas '+S2.done+' de '+S2.target+' entrenamientos.';
+  const low=S2.md.slice().sort((x,y)=>x.rec-y.rec)[0];
+  if(low&&low.rec<60) rec='Tu '+low.g.toLowerCase()+' aún se está recuperando ('+low.rec+'%). Hoy conviene trabajar otra zona o descansar.'; else if(mi&&mi.cur) rec='Estás en '+mi.cur.periodo+' (semana '+(mi.wk+1)+' de '+mi.n+'): entrena al '+Math.round(mi.cur.intensidad*100)+'% de intensidad.'; else rec='Duerme 7 a 8 horas para recuperarte mejor.';
+  return [ins,rec]; }
+function macroMini(P){ const mi=macroInfo(P); if(!mi) return ''; const t=mi.wk<0?'Parte pronto':mi.wk>=mi.n?'Terminó 🎉':'Semana '+(mi.wk+1)+' de '+mi.n+' · '+mi.cur.periodo; const pc=Math.max(0,Math.min(100,Math.round(100*(mi.wk+1)/mi.n)));
+  return `<div class="card"><div class="row between"><h3>Tu plan de 12 semanas</h3><button class="btn sm ghost" data-x="aplan">Ver →</button></div><div class="sm" style="margin:6px 0">${esc(t)}${mi.m.meta?' · <span class="mut">'+esc(mi.m.meta)+'</span>':''}</div><div class="sbt"><i style="width:${pc}%;background:linear-gradient(90deg,#3fa9ff,#2ee6c5)"></i></div></div>`; }
+function weekStrip(P,AL){ const D=P.dias||{}, H=mergeH(P.hechos,AL.hechos), hd=new Set(hDone(H).map(([k,v])=>v.d)); const t=new Date(), mon=new Date(t.getFullYear(),t.getMonth(),t.getDate()-((t.getDay()+6)%7)); const L=['L','M','X','J','V','S','D'];
+  return `<div class="wkstrip">${L.map((l,i)=>{ const d=new Date(mon.getFullYear(),mon.getMonth(),mon.getDate()+i), ds=ymd(d), isT=ds===ymd(t), pl=D[ds], dn=hd.has(ds); return `<div class="wd ${isT?'tod':''}"><small>${l}</small><span class="${dn?'ok':pl?'pl':''}">${dn?'✓':pl?'🏋️':''}</span></div>`; }).join('')}</div>`; }
+function recList(md){ return md.map(x=>`<div class="mrow"><div class="mic">${MUSE[x.g]||'•'}</div><div class="grow"><b>${x.g}</b><div class="xs mut">${x.l?'Último: '+fdate(x.l):'Sin ejercicios recientes'}${x.v?' · '+x.v+' series (30 días)':''}</div></div><span class="rpill" style="background:${x.rec>=80?'#1fc46a':x.rec>=50?'#e0a82e':'#e0523e'}">${x.rec}%</span></div>`).join(''); }
+function macroFull(P){ const mi=macroInfo(P); if(!mi) return '<div class="card empty">Tu profesor aún no programó tu macrociclo.</div>'; const {m,wk,n}=mi; const W=340,H=150,mg={l:8,r:8,t:18,b:24}, bw=(W-mg.l-mg.r)/n; let g='';
+  m.semanas.forEach((s,i)=>{ const h=(H-mg.t-mg.b)*s.intensidad, x=mg.l+i*bw+bw*.12, y=H-mg.b-h; g+=`<rect x="${x}" y="${y}" width="${bw*.76}" height="${h}" rx="4" fill="${PCOL[s.periodo]||'#3fa9ff'}" opacity="${i===wk?1:.55}" ${i===wk?'stroke="#fff" stroke-width="2"':''}/><text x="${x+bw*.38}" y="${H-8}" text-anchor="middle" style="font-size:9px;fill:var(--mut)">${i+1}</text>`; });
+  const used=[...new Set(m.semanas.map(s=>s.periodo))];
+  return `<div class="card"><h3>Macrociclo</h3><div class="sm" style="margin:4px 0">${wk<0?'Parte el '+fdate(m.inicio):wk>=n?'Terminó 🎉':'Estás en la <b>semana '+(wk+1)+' de '+n+'</b> · '+esc(mi.cur.periodo)+' · intensidad '+Math.round(mi.cur.intensidad*100)+'%'}</div>${m.meta?`<div class="xs mut">Meta: ${esc(m.meta)}</div>`:''}<svg class="ch" viewBox="0 0 ${W} ${H}">${g}</svg><div class="row" style="flex-wrap:wrap;gap:8px;margin-top:4px">${used.map(p=>`<span class="xs"><i style="display:inline-block;width:10px;height:10px;border-radius:3px;background:${PCOL[p]||'#3fa9ff'};margin-right:4px"></i>${esc(p)}</span>`).join('')}</div><div class="xs mut" style="margin-top:6px">La altura de cada barra es la intensidad de la semana. La barra con borde blanco es la actual.</div></div>`; }
+function monthStats(P,AL){ const H=mergeH(P.hechos,AL.hechos), t=new Date(), mk=ymd(t).slice(0,7); const ex=hDone(H).filter(([k,v])=>String(v.d).slice(0,7)===mk).length; const wk=(P.prog||{}).wk||{}; let ses=0; Object.entries(wk).forEach(([k,v])=>{ if(k.slice(0,7)===mk) ses+=v; }); const ts=((P.prog||{}).cards||[]).length;
+  return `<div class="kpis"><div><small>Sesiones del mes</small><b>${ses}</b></div><div><small>Ejercicios hechos</small><b>${ex}</b></div><div><small>Tests</small><b>${ts}</b></div></div>`; }
 function capCards(P,withBars){
   const D=capData(P); if(!D.length) return `<div class="card"><h3>Tus capacidades</h3><div class="sm mut" style="margin-top:6px">Cuando tu profesor registre tus tests físicos, aquí verás tu pentagrama y tu avance.</div></div>`;
   let h=`<div class="card"><h3>Tus capacidades</h3><div class="xs mut">Mientras más grande el dibujo, mejor. Gris punteado: tu primer test${D.every(d=>d.g!=null)?' · Azul punteado: promedio del grupo':''}. Toca un punto para ver el detalle.</div>${D.length>=3?aRadar(D,AU.cap):aBars(D,AU.cap)}${capInfo(D,AU.cap)}</div>`;
@@ -1455,7 +1496,10 @@ function aluRender(){
   if(AU.tab==='inicio'){
     const d=(P.dias||{})[today]; const wk=wkKey(new Date()); const am=(AL.animo||{})[today];
     h+=`<div class="card"><div class="xs mut">HOY · ${fdate(today)}</div>${d?`<div style="font-size:20px;font-weight:800;margin-top:4px">🏋️ ${esc(d.t)} <span class="sm mut">${esc(d.h||'')}</span></div>`:'<div style="font-size:18px;font-weight:700;margin-top:4px">Día de descanso 😌</div>'}${(P.tnotas||{})[today]?`<div class="note" style="margin-top:6px">💬 ${esc(P.tnotas[today])}</div>`:''}</div>`;
-    h+=resumenCard(P)+capCards(P,false);
+    { const S2=scoreData(P,AL), [ins,rec]=insightTxt(P,S2);
+      h+=`<div class="card"><div class="row" style="gap:12px"><div>${scoreRing(S2.tot)}</div><div class="grow"><h3>Tu puntaje</h3><div class="xs mut" style="margin-bottom:6px">Resume cómo vas esta semana</div>${sbar('🏋️','Constancia',S2.con,'#ff4d6d')}${sbar('🔋','Recuperación',S2.rec,'#2ee6c5')}${S2.cond!=null?sbar('💪','Condición',S2.cond,'#3fa9ff'):''}</div></div>
+      <div class="ins"><div><b>💡 Hoy</b><div class="xs">${esc(ins)}</div></div><div><b>🎯 Recomendación</b><div class="xs">${esc(rec)}</div></div></div><button class="btn pri" style="width:100%;margin-top:10px" data-x="atab" data-v="prog">Ver mi progreso en detalle →</button></div>`;
+      h+=`<div class="card"><h3>Esta semana</h3>${weekStrip(P,AL)}</div>`+macroMini(P); }
     const rs=(P.recs||[]).filter(r=>(r.dias||[]).includes(ISO(new Date()))).sort((a,b)=>a.h.localeCompare(b.h)); const nowH=new Date().toTimeString().slice(0,5);
     if(rs.length) h+=`<div class="card"><h3>Recordatorios de hoy</h3>${rs.map(r=>`<div style="padding:8px 0;border-top:1px solid var(--line);${r.h<nowH?'opacity:.6':''}"><b>${esc(r.h)}</b> <span class="sm">${esc(r.msg)}</span>${r.gif?(AU.gif[r.gif]?mediaTag(AU.gif[r.gif]):'<div class="xs mut">cargando imagen…</div>'):''}</div>`).join('')}</div>`;
     const _dn=(P.objetivos||[]).filter(o=>(AL.ok||{})[wk+'|'+o.id]).length;
@@ -1477,9 +1521,16 @@ function aluRender(){
     else h+=`<button class="btn ghost sm" data-x="arut" data-v="" style="padding-left:0">← Rutinas</button><h2 style="margin:4px 0 8px">${esc(r.n)}</h2>${r.ej.map((e,j)=>{ if(isD(r.id,j)) return ''; const th=exAnim(e.n,{size:56,follow:1}); return `<div class="card"><div class="row">${th?`<div class="exth" style="cursor:default">${th}</div>`:''}<div class="grow"><b>${esc(e.n)}</b><div class="xs mut">${esc(e.fase||'')}</div></div></div><div class="sm" style="margin-top:6px">${[e.s&&'Series: '+e.s,e.lb&&'Carga: '+e.lb+' lb',e.rpe&&'RPE '+e.rpe,e.rm&&e.rm+'% RM',e.fc&&e.fc+' FC máx',e.desc&&'Descanso '+e.desc].filter(Boolean).map(esc).join(' · ')}</div>${e.obs?`<div class="xs mut" style="margin-top:4px">${esc(e.obs)}</div>`:''}<button class="btn pri" style="margin-top:8px;width:100%" data-x="aex" data-v="${r.id}" data-i="${j}">✓ Ya lo hice</button></div>`; }).join('')}`;
   }
   if(AU.tab==='prog'){
-    h+=resumenCard(P)+capCards(P,true); const CD=(((P.prog||{}).cards)||[]); if(CD.length) h+=`<div style="margin:14px 0 4px"><h2>Tus tests</h2><div class="sm mut">Cada tarjeta te explica tu resultado en simple.</div></div>`+CD.map(testCard).join(''); h+=`<div class="card"><h3>Historial de ejercicios</h3><div class="xs mut">Lo que ya completaste. Aquí queda guardado.</div>${histHTML(mergeH(P.hechos,AL.hechos),'aexundo','')}</div>`; const O=ptOpts(P);
-    if(O.length){ const cur=O.find(x=>x.id===AU.tsel)||O[0]; h+=`<div class="card"><h3>Evolución</h3><div class="row" style="flex-wrap:wrap;margin:6px 0">${O.map(x=>`<button class="btn sm ${x.id===cur.id?'pri':''}" data-x="atsel" data-v="${x.id}">${esc(x.n.length>22?x.n.slice(0,22)+'…':x.n)}</button>`).join('')}</div><div class="xs mut">${esc(cur.n)}${cur.u?' ('+esc(cur.u)+')':''} · toca un punto</div>${aPoints(cur,AU.tsel===cur.id?AU.tpt:null)}</div>`; }
-    h+=`<div class="card"><h3>Constancia: sesiones por semana</h3>${aWeeks(P)}</div>`;
+    const pv=AU.pv||'gen'; const PV=[['gen','General'],['cap','Capacidades'],['mus','Músculos'],['plan','Plan']];
+    h+=`<div class="seg">${PV.map(([k,l])=>`<button class="${pv===k?'on':''}" data-x="apv" data-v="${k}">${l}</button>`).join('')}</div>`;
+    const H=mergeH(P.hechos,AL.hechos), O=ptOpts(P);
+    if(pv==='gen'){ const S2=scoreData(P,AL); h+=`<div class="card"><div class="row" style="gap:12px"><div>${scoreRing(S2.tot)}</div><div class="grow"><h3>Resumen general</h3>${sbar('🏋️','Constancia',S2.con,'#ff4d6d')}${sbar('🔋','Recuperación',S2.rec,'#2ee6c5')}${S2.cond!=null?sbar('💪','Condición',S2.cond,'#3fa9ff'):''}</div></div></div>`+resumenCard(P)+`<div class="card"><h3>Este mes</h3>${monthStats(P,AL)}</div><div class="card"><h3>Constancia: sesiones por semana</h3>${aWeeks(P)}</div>`+macroMini(P)+`<div class="xs mut" style="text-align:center;margin:8px 0">Toca las pestañas de arriba para ver más detalle: capacidades, músculos y tu plan.</div>`; }
+    if(pv==='cap'){ h+=capCards(P,true); const CD=(((P.prog||{}).cards)||[]); if(CD.length) h+=`<div style="margin:14px 0 4px"><h2>Tus tests</h2><div class="sm mut">Cada tarjeta te explica tu resultado en simple.</div></div>`+CD.map(testCard).join('');
+      if(O.length){ const cur=O.find(x=>x.id===AU.tsel)||O[0]; h+=`<div class="card"><h3>Evolución</h3><div class="row" style="flex-wrap:wrap;margin:6px 0">${O.map(x=>`<button class="btn sm ${x.id===cur.id?'pri':''}" data-x="atsel" data-v="${x.id}">${esc(x.n.length>22?x.n.slice(0,22)+'…':x.n)}</button>`).join('')}</div>${aPoints(cur,AU.tpt)}</div>`; } }
+    if(pv==='mus'){ const md=musData(P,H); const mx=Math.max(1,...md.map(x=>x.v)); const RD=md.map(x=>({id:x.g,n:x.g,first:x.v*5/mx,last:x.v*5/mx}));
+      const avg=Math.round(md.filter(x=>x.l).reduce((s,x)=>s+x.rec,0)/Math.max(1,md.filter(x=>x.l).length))||100;
+      h+=`<div class="card"><div class="row" style="gap:12px"><div style="width:90px">${aRing(avg,100).replace('>'+avg+'/100<','>'+avg+'%<')}</div><div class="grow"><h3>Recuperación general</h3><div class="xs mut">Promedio de tus grupos musculares según lo que entrenaste. 100% = listo para entrenar.</div></div></div></div><div class="card"><h3>Recuperación por músculo</h3>${recList(md)}</div><div class="card"><h3>Músculos trabajados este mes</h3><div class="xs mut">Mientras más grande, más series hiciste. Sirve para ver qué zonas estás descuidando.</div>${aRadar(RD,'')}</div>`; }
+    if(pv==='plan'){ h+=macroFull(P)+`<div class="card"><h3>Historial de ejercicios</h3><div class="xs mut">Lo que ya completaste. Aquí queda guardado.</div>${histHTML(H,'aexundo','')}</div>`; }
   }
   if(AU.tab==='comida') h+=`<div class="card"><h3>Recomendaciones alimenticias</h3><div class="sm" style="white-space:pre-wrap;margin-top:8px">${esc(P.nutri||'Tu profesor aún no dejó recomendaciones.')}</div></div>`;
   if(AU.tab==='perfil'){ const p=AL.perfil||{}; const F=(k,l,t)=>`<div><label>${l}</label><input data-xc="aperfil" data-k="${k}" type="${t||'text'}" value="${esc(p[k]!=null?p[k]:(k==='nombre'?(P.nombre||ST.nombre||''):''))}"></div>`;
@@ -1502,6 +1553,8 @@ function aluAct(a,v,el){
     case 'anotedel': aluSet(A=>{ A.notas[AU.sel]=(A.notas[AU.sel]||[]).filter(n=>n.id!==v); if(!A.notas[AU.sel].length) delete A.notas[AU.sel]; }); break;
     case 'aex': { const rr=((ST.plan||{}).rutinas||[]).find(q=>q.id===v); if(!rr) break; const j=Number(el.dataset.i), e=rr.ej[j]; aluSet(A=>{ A.hechos=A.hechos||{}; A.hechos[v+'|'+j]={t:Date.now(),d:ymd(new Date()),r:rr.n,n:e.n,s:e.s||'',by:'a'}; }); break; }
     case 'aexundo': { const k=el.dataset.k, o=mergeH((ST.plan||{}).hechos,ST.alumno.hechos)[k]; if(!o) break; aluSet(A=>{ A.hechos=A.hechos||{}; A.hechos[k]={...o,t:Date.now(),x:1}; }); break; }
+    case 'apv': AU.pv=v; render(true); window.scrollTo(0,0); break;
+    case 'aplan': AU.tab='prog'; AU.pv='plan'; render(true); window.scrollTo(0,0); break;
     case 'arut': AU.rut=v||null; render(true); window.scrollTo(0,0); break;
     case 'aout': ST={alumno:{}}; try{ localStorage.removeItem(LS_ST); }catch(e){} AU.gif={}; render(true); break;
   }
@@ -1512,7 +1565,7 @@ document.addEventListener('click',e=>{
   if(a==='role'){ setRole(v); return; }
   if(/^pin/.test(a)) return pinAct(a);
   if(a==='adin') return adminAuth('in'); if(a==='adup') return adminAuth('up');
-  if(['aauth','acap','apt','atsel','atab','async','amood','acm','acd','anote','anotedel','arut','aout','aex','aexundo'].includes(a)) return aluAct(a,v,el);
+  if(['aauth','acap','apt','atsel','atab','async','amood','acm','acd','anote','anotedel','arut','aout','aex','aexundo','apv','aplan'].includes(a)) return aluAct(a,v,el);
   xAct(a,el);
 });
 document.addEventListener('change',e=>{
