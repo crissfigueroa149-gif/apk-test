@@ -317,9 +317,10 @@ let dbh = null, mode = 'cargando', loaded = {}, chain = {};
 function persistLocal(){ try{ const old=localStorage.getItem('entrenabilidad_v1'); if(old) localStorage.setItem('entrenabilidad_v1_bak',old); localStorage.setItem('entrenabilidad_v1',JSON.stringify(S)); }catch(e){} if(typeof cloudSchedule==='function') cloudSchedule(); }
 function loadLocal(){ for(const k of ['entrenabilidad_v1','entrenabilidad_v1_bak']){ try{ const r=localStorage.getItem(k); if(r){ const o=JSON.parse(r); COLS.forEach(c=>{ S[c]=o[c]||{}; }); return; } }catch(e){} } }
 function queue(key,fn){ const p=(chain[key]||Promise.resolve()).catch(()=>{}).then(fn); chain[key]=p; return p; }
+const keepSc=app=>{ const L=[...app.querySelectorAll('.scroll')].map(e=>[e.scrollLeft,e.scrollTop]); return ()=>{ const N=app.querySelectorAll('.scroll'); L.forEach((p,i)=>{ if(N[i]){ N[i].scrollLeft=p[0]; N[i].scrollTop=p[1]; } }); }; };
 function put(col,id,obj){
-  obj = clone(obj); S[col][id]=obj;
-  if(dbh){ queue(col+'/'+id,()=>dbh.collection(col).doc(id).set(obj)).catch(e=>toast('No se pudo guardar ('+(e&&e.code||'error')+')')); }
+  const prev=S[col][id]; obj = clone(obj); S[col][id]=obj; /* optimista: la pantalla cambia primero */
+  if(dbh){ queue(col+'/'+id,()=>dbh.collection(col).doc(id).set(obj)).catch(e=>{ if(S[col][id]===obj){ if(prev===undefined) delete S[col][id]; else S[col][id]=prev; render(); } toast('No se pudo guardar ('+(e&&e.code||'error')+'). Se deshizo el cambio.'); }); }
   else persistLocal();
   render();
 }
@@ -1855,7 +1856,7 @@ function aluRender(){
   if(AU.tab==='comida') h+=comidaView(P,AL);
   if(AU.tab==='perfil'){ const p=AL.perfil||{}; const F=(k,l,t)=>`<div><label>${l}</label><input data-xc="aperfil" data-k="${k}" type="${t||'text'}" value="${esc(p[k]!=null?p[k]:(k==='nombre'?(P.nombre||ST.nombre||''):''))}"></div>`;
     h+=`<div class="card"><h3>Mis datos personales</h3><div class="f">${F('nombre','Nombre')}${F('edad','Edad','number')}${F('peso','Peso (kg)','number')}${F('estatura','Estatura (cm)','number')}${F('tel','Teléfono','tel')}</div><div class="xs mut" style="margin-top:6px">Tu profesor ve estos datos. Se guardan al salir del campo.</div></div><div class="card"><div class="sm">Cuenta: <b>${esc(ST.user.email||'')}</b></div><div class="xs mut" style="margin-top:6px">☁️ ${esc(syncT)}</div><button class="btn bad" style="margin-top:8px" data-x="aout">Cerrar sesión</button></div><div class="card"><h3>Preferencias</h3><div class="row between" style="margin-top:12px"><div><b>Unidad de peso</b><div class="xs mut">Para los pesos que levantas</div></div><div class="pills"><button class="${UL()==='kg'?'on':''}" data-x="aunit" data-v="kg">kg</button><button class="${UL()==='lb'?'on':''}" data-x="aunit" data-v="lb">lb</button></div></div><div class="row between" style="margin-top:16px"><div><b>Modo de la app</b><div class="xs mut">Alumno o profesor</div></div><div class="pills"><button class="on">Alumno</button><button data-x="role" data-v="">Profesor</button></div></div></div>`; }
-  { const fk=AU.tab+(AU.tab==='prog'?pvKey():''); app.classList.toggle('fresh',AU.lastKey!==fk); AU.lastKey=fk; } setTimeout(aluAnim,0); app.innerHTML=h+`<nav class="nav">${tabs.map(t=>`<button class="${AU.tab===t[0]?'on':''}" data-x="atab" data-v="${t[0]}">${t[2]}<span>${t[1]}</span></button>`).join('')}</nav>`;
+  { const fk=AU.tab+(AU.tab==='prog'?pvKey():''); app.classList.toggle('fresh',AU.lastKey!==fk); AU.lastKey=fk; } setTimeout(aluAnim,0); const rsc=keepSc(app); app.innerHTML=h+`<nav class="nav">${tabs.map(t=>`<button class="${AU.tab===t[0]?'on':''}" data-x="atab" data-v="${t[0]}">${t[2]}<span>${t[1]}</span></button>`).join('')}</nav>`; if(!app.classList.contains('fresh')) rsc();
 }
 function confetti(){ try{ const c=document.createElement('canvas'); c.style.cssText='position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:9999'; c.width=innerWidth; c.height=innerHeight; document.body.appendChild(c); const x=c.getContext('2d'), P=[]; const col=['#ff7ab6','#ffd23f','#2ee6c5','#3fa9ff','#ff9f43']; for(let i=0;i<110;i++) P.push({x:innerWidth/2,y:innerHeight*.55,vx:(Math.random()-.5)*16,vy:-Math.random()*16-4,s:4+Math.random()*6,c:col[i%5],r:Math.random()*6}); let f=0; (function t(){ x.clearRect(0,0,c.width,c.height); P.forEach(p=>{ p.vy+=.45; p.x+=p.vx; p.y+=p.vy; p.r+=.2; x.save(); x.translate(p.x,p.y); x.rotate(p.r); x.fillStyle=p.c; x.fillRect(-p.s/2,-p.s/2,p.s,p.s*.6); x.restore(); }); if(++f<110) requestAnimationFrame(t); else c.remove(); })(); }catch(e){} }
 function objDone(){ const P=ST.plan||{},AL=ST.alumno||{}; return (P.objetivos||[]).filter(o=>{ const p=objProg(o,P,AL); return p.v>=p.n; }).length; }
@@ -2509,7 +2510,9 @@ function render(force){
   if(!force&&!ui.modal&&!render._m&&htmlNew===render._h&&app.children.length) return;
   render._h=htmlNew; render._m=!!ui.modal;
   if(vk===render._vk&&app.classList.contains('enter')) app.classList.add('noanim'); else app.classList.remove('noanim');
+  const rsc=keepSc(app);
   app.innerHTML=banner+v+`<nav class="nav">${tabs.map(t=>`<button class="${ui.tab===t[0]?'on':''}" data-a="tab" data-v="${t[0]}">${ICON[t[0]==='ajustes'?'ajustes':t[0]]}<span>${t[1]}</span></button>`).join('')}</nav>`;
+  if(vk===render._vk) rsc();
   const nh=app.querySelector('.hero'); if(oldHero&&nh) nh.replaceWith(oldHero);
   if(vk!==render._vk){ render._vk=vk; app.classList.remove('enter'); void app.offsetWidth; app.classList.add('enter'); clearTimeout(render._t); render._t=setTimeout(()=>app.classList.remove('enter'),520); }
   if(ui.modal){ ov.innerHTML=renderModal(); ov.classList.add('on'); document.body.classList.add('lock'); derive(); }
