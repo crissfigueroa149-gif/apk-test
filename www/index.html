@@ -16,13 +16,13 @@
   --r:16px;
 }
 html{background:var(--bg)}
-body::before{content:'';position:fixed;inset:0;z-index:-2;background-color:#0D0E12;background-image:radial-gradient(circle at 15% 5%,rgba(236,72,153,.14) 0%,transparent 45%),radial-gradient(circle at 85% 15%,rgba(245,158,11,.10) 0%,transparent 45%);background-attachment:fixed}
+body::before{content:'';position:fixed;inset:0;z-index:-2;background-color:#0D0E12;background-image:radial-gradient(circle at 15% 5%,rgba(236,72,153,.14) 0%,transparent 45%),radial-gradient(circle at 85% 15%,rgba(245,158,11,.10) 0%,transparent 45%)}
 
 @keyframes drift{from{transform:scale(1.04) rotate(0deg)}to{transform:scale(1.16) rotate(4deg)}}
 @media (prefers-reduced-motion:reduce){body::before{animation:none}}
 *{box-sizing:border-box}
 html,body{margin:0}
-body{background:transparent;color:var(--ink);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-text-size-adjust:100%}
+html,body{overscroll-behavior-y:none}body{min-height:100dvh;-webkit-overflow-scrolling:touch;background:transparent;color:var(--ink);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-text-size-adjust:100%}
 body.lock{overflow:hidden}
 #app{max-width:980px;margin:0 auto;padding:0 14px calc(110px + env(safe-area-inset-bottom))}
 h1,h2,h3{margin:0;line-height:1.2}
@@ -32,7 +32,7 @@ h1{font-size:24px;background:var(--grad);-webkit-background-clip:text;background
 .nav button span{font-size:11px}
 #rtpill{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(74px + env(safe-area-inset-bottom));z-index:60;background:linear-gradient(135deg,#ff9a3c,#ff5fa2);color:#1a0b2e;border-radius:999px;padding:10px 18px;display:none;align-items:center;gap:10px;box-shadow:0 6px 24px rgba(0,0,0,.45);overflow:hidden;cursor:pointer;font-size:16px}
 #rtpill i{position:absolute;left:0;bottom:0;height:3px;background:#1a0b2e;opacity:.5}
-.rolebox{max-width:480px;margin:0 auto;padding:36px 18px;display:flex;flex-direction:column;gap:14px;min-height:100vh;justify-content:center}
+.rolebox{max-width:480px;margin:0 auto;padding:36px 18px;display:flex;flex-direction:column;gap:14px;min-height:100dvh;justify-content:center}
 .rolehd{text-align:center;margin-bottom:8px}.rolelogo{letter-spacing:.2em;text-transform:uppercase;font-size:12px;color:var(--acc);font-weight:700}
 .rolebtn{border:0;border-radius:22px;padding:26px 22px;text-align:left;color:#1a0b2e;cursor:pointer;font:inherit;display:flex;flex-direction:column;gap:6px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
 .rolebtn b{font-size:26px}.rolebtn span{font-size:14px;opacity:.85}.rolebtn:active{transform:scale(.98)}
@@ -1484,18 +1484,19 @@ async function aluAuth(){
 }
 function aluSet(fn){ fn(ST.alumno); ST.au=Date.now(); ST.dirty=1; stSave(); render(true); clearTimeout(stT); stT=setTimeout(()=>aluSync(false),1500); }
 let aluBusy=false;
+function cloudIcon(){ const b=document.querySelector('.cloud'); if(b) b.textContent=AU.msg==='sync'?'⏳':AU.msg==='err'?'⚠️':'☁️'; }
 async function aluSync(manual){
-  if(!stOn()||aluBusy) return; aluBusy=true; AU.msg='sync'; const keep=document.activeElement&&document.activeElement.tagName==='INPUT';
+  if(!stOn()||aluBusy) return; aluBusy=true; const prevMsg=AU.msg; let chg=false; AU.msg='sync'; cloudIcon(); const keep=document.activeElement&&document.activeElement.tagName==='INPUT';
   try{
     const sv=stSave;
-    const pf=await dGet(ST,sv,`students/${ST.sid}/data/plan`); if(pf){ const u=gI(pf.u); if(u!==ST.pu){ ST.plan=JSON.parse(gS(pf.j)); ST.pu=u; aluNotif(); } }
+    const pf=await dGet(ST,sv,`students/${ST.sid}/data/plan`); if(pf){ const u=gI(pf.u); if(u!==ST.pu){ ST.plan=JSON.parse(gS(pf.j)); ST.pu=u; aluNotif(); chg=true; } }
     const af=await dGet(ST,sv,`students/${ST.sid}/data/alumno`); const ru=af?gI(af.u):0;
-    if(af&&ru>(ST.au||0)&&!ST.dirty){ ST.alumno=JSON.parse(gS(af.j)||'{}'); ST.au=ru; }
+    if(af&&ru>(ST.au||0)&&!ST.dirty){ ST.alumno=JSON.parse(gS(af.j)||'{}'); ST.au=ru; chg=true; }
     if(ST.dirty){ await dCommit(ST,sv,[dW(ST,`students/${ST.sid}/data/alumno`,{j:fS(JSON.stringify(ST.alumno)),u:fI(ST.au)})]); ST.dirty=0; }
     for(const r of ((ST.plan||{}).recs||[])){ if(r.gif&&!AU.gif[r.gif]){ const gf=await dGet(ST,sv,`students/${ST.sid}/data/g_${r.gif}`); if(gf) AU.gif[r.gif]=gS(gf.j); } }
     AU.msg='ok'; ST.last=Date.now(); stSave(); if(manual) toast('Actualizado');
   }catch(e){ AU.msg='err'; AU.err=apiErr(e); if(manual) toast(AU.err); }
-  finally{ aluBusy=false; if(ROLE==='alumno'&&!keep&&!document.activeElement.matches('input,textarea,select')) render(true); }
+  finally{ aluBusy=false; if(ROLE==='alumno'){ cloudIcon(); if((chg||manual||(prevMsg==='err')!==(AU.msg==='err'))&&!keep&&!document.activeElement.matches('input,textarea,select')) render(true); } }
 }
 async function aluNotif(){
   const LN=window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.LocalNotifications; if(!LN||!ST.plan) return;
@@ -1843,7 +1844,7 @@ function aluRender(){
     <button class="btn ghost" data-x="role" data-v="">← Volver al inicio</button></div>`; return;
   }
   const P=ST.plan||{}; const AL=ST.alumno; const today=ymd(new Date());
-  document.body.classList.toggle('foco',!!AU.foco); if(AU.foco){ const fv=focoView(P,AL); if(fv){ app.innerHTML=fv; return; } }
+  document.body.classList.toggle('foco',!!AU.foco); if(AU.foco){ const fv=focoView(P,AL); if(fv){ aluRender._h=null; app.innerHTML=fv; return; } }
   const tabs=[['inicio','Inicio',ICON.hoy],['cal','Calendario',ICON.asistencia],['prog','Progreso',ICON.progreso||ICON.tests],['rut','Rutinas',ICON.tests],['comida','Comida',ICON.guias],['perfil','Perfil',ICON.clientes]];
   const TT={inicio:null,cal:'Calendario',prog:'Tu Progreso',rut:'Rutinas',comida:'Nutrición e Hidratación',perfil:'Mi Perfil'}[AU.tab];
   const nm=((AL.perfil&&AL.perfil.nombre)||P.nombre||ST.nombre||'').split(' ')[0]||'';
@@ -1887,7 +1888,7 @@ function aluRender(){
   if(AU.tab==='perfil'){ const p=AL.perfil||{}; const PF=P.perf||{}; const pv2=k=>{ const tv=k==='peso'?PF.peso:k==='estatura'?PF.talla:null, sv=p[k]; if(tv!=null&&tv!==''&&(sv===''||sv==null||(k==='peso'&&PF.f&&PF.f>(p._pt?ymd(new Date(p._pt)):'0'))||(k==='estatura'&&!p._et))) return tv; return sv!=null?sv:(k==='nombre'?(P.nombre||ST.nombre||''):''); }; const F=(k,l,t)=>`<div><label>${l}</label><input data-xc="aperfil" data-k="${k}" type="${t||'text'}" value="${esc(pv2(k))}"></div>`;
     h+=`<div class="card"><h3>Mis datos personales</h3><div class="f">${F('nombre','Nombre')}${F('edad','Edad','number')}${F('peso','Peso (kg)','number')}${F('estatura','Estatura (cm)','number')}${F('tel','Teléfono','tel')}</div><div class="xs mut" style="margin-top:6px">Tu profesor ve estos datos. Se guardan al salir del campo.</div></div><div class="card"><div class="sm">Cuenta: <b>${esc(ST.user.email||'')}</b></div><div class="xs mut" style="margin-top:6px">☁️ ${esc(syncT)}</div><button class="btn bad" style="margin-top:8px" data-x="aout">Cerrar sesión</button></div><div class="card"><h3>Preferencias</h3><div class="row between" style="margin-top:12px"><div><b>Unidad de peso</b><div class="xs mut">Para los pesos que levantas</div></div><div class="pills"><button class="${UL()==='kg'?'on':''}" data-x="aunit" data-v="kg">kg</button><button class="${UL()==='lb'?'on':''}" data-x="aunit" data-v="lb">lb</button></div></div><div class="row between" style="margin-top:16px"><div><b>Modo de la app</b><div class="xs mut">Alumno o profesor</div></div><div class="pills"><button class="on">Alumno</button><button data-x="role" data-v="">Profesor</button></div></div></div>`; }
   if(AU.cel){ const c=AU.cel; h+=`<div class="cel" data-x="acelx"><div style="font-size:56px">🎉</div><h2>¡Entrenamiento completado!</h2><div class="cs">${c.ej} ejercicio${c.ej===1?'':'s'} · ${c.se} series${c.re?' · '+c.re+' reps':''}${c.seg?' · '+c.seg+' s':''} · ${c.min} min</div>${c.meta?`<div class="sm" style="color:#10B981">🔥 ¡Cumpliste la meta de la semana!${c.n>1?' '+c.n+' semanas seguidas':''}</div>`:''}${gifImg(c.gif)}<button class="btn pri" style="margin-top:10px;min-width:200px" data-x="acelx">Continuar</button></div>`; }
-  { const fk=AU.tab+(AU.tab==='prog'?pvKey():''); app.classList.toggle('fresh',AU.lastKey!==fk); AU.lastKey=fk; } setTimeout(aluAnim,0); const rsc=keepSc(app); app.innerHTML=h+`<nav class="nav">${tabs.map(t=>`<button class="${AU.tab===t[0]?'on':''}" data-x="atab" data-v="${t[0]}">${t[2]}<span>${t[1]}</span></button>`).join('')}</nav>`; if(!app.classList.contains('fresh')) rsc();
+  { const fk=AU.tab+(AU.tab==='prog'?pvKey():''); app.classList.toggle('fresh',AU.lastKey!==fk); AU.lastKey=fk; } const full=h+`<nav class="nav">${tabs.map(t=>`<button class="${AU.tab===t[0]?'on':''}" data-x="atab" data-v="${t[0]}">${t[2]}<span>${t[1]}</span></button>`).join('')}</nav>`; if(full===aluRender._h&&app.children.length&&!app.querySelector('.rolebox')) return; aluRender._h=full; const sy0=window.scrollY; setTimeout(aluAnim,0); const rsc=keepSc(app); app.innerHTML=full; window.scrollTo(0,sy0); if(!app.classList.contains('fresh')) rsc();
 }
 function confetti(){ try{ const c=document.createElement('canvas'); c.style.cssText='position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:9999'; c.width=innerWidth; c.height=innerHeight; document.body.appendChild(c); const x=c.getContext('2d'), P=[]; const col=['#ff7ab6','#ffd23f','#2ee6c5','#3fa9ff','#ff9f43']; for(let i=0;i<110;i++) P.push({x:innerWidth/2,y:innerHeight*.55,vx:(Math.random()-.5)*16,vy:-Math.random()*16-4,s:4+Math.random()*6,c:col[i%5],r:Math.random()*6}); let f=0; (function t(){ x.clearRect(0,0,c.width,c.height); P.forEach(p=>{ p.vy+=.45; p.x+=p.vx; p.y+=p.vy; p.r+=.2; x.save(); x.translate(p.x,p.y); x.rotate(p.r); x.fillStyle=p.c; x.fillRect(-p.s/2,-p.s/2,p.s,p.s*.6); x.restore(); }); if(++f<110) requestAnimationFrame(t); else c.remove(); })(); }catch(e){} }
 function objDone(){ const P=ST.plan||{},AL=ST.alumno||{}; return (P.objetivos||[]).filter(o=>{ const p=objProg(o,P,AL); return p.v>=p.n; }).length; }
@@ -2566,14 +2567,14 @@ function render(force){
   if(!force&&!ui.modal&&!render._m&&htmlNew===render._h&&app.children.length) return;
   render._h=htmlNew; render._m=!!ui.modal;
   if(vk===render._vk&&app.classList.contains('enter')) app.classList.add('noanim'); else app.classList.remove('noanim');
-  const rsc=keepSc(app); const monthChg=render._mk!==ui.month; render._mk=ui.month;
+  const sameView=vk===render._vk; const rsc=keepSc(app); const monthChg=render._mk!==ui.month; render._mk=ui.month;
   app.innerHTML=banner+v+`<nav class="nav">${tabs.map(t=>`<button class="${ui.tab===t[0]?'on':''}" data-a="tab" data-v="${t[0]}">${ICON[t[0]==='ajustes'?'ajustes':t[0]]}<span>${t[1]}</span></button>`).join('')}</nav>`;
   if(ui.tab==='asistencia'&&(vk!==render._vk||monthChg)){ const sc=app.querySelector('.scroll'), th=sc&&sc.querySelector('th.today'); if(th) sc.scrollLeft+=th.getBoundingClientRect().left-sc.getBoundingClientRect().left-(sc.clientWidth/2-th.offsetWidth/2); } else if(vk===render._vk) rsc();
   const nh=app.querySelector('.hero'); if(oldHero&&nh) nh.replaceWith(oldHero);
   if(vk!==render._vk){ render._vk=vk; app.classList.remove('enter'); void app.offsetWidth; app.classList.add('enter'); clearTimeout(render._t); render._t=setTimeout(()=>app.classList.remove('enter'),520); }
   if(ui.modal){ ov.innerHTML=renderModal(); ov.classList.add('on'); document.body.classList.add('lock'); derive(); }
   else { ov.innerHTML=''; ov.classList.remove('on'); document.body.classList.remove('lock'); }
-  if(!force) window.scrollTo(0,keepScroll);
+  if(sameView) window.scrollTo(0,keepScroll);
   try{ guiasInit(); }catch(e){}
   applyTq();
 }
