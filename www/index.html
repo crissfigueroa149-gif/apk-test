@@ -90,6 +90,8 @@ h1{font-size:24px;background:var(--grad);-webkit-background-clip:text;background
 .fh,.frow{display:grid;grid-template-columns:34px 1fr 1fr 1fr 44px;gap:6px;align-items:center}.fh{margin:10px 0 4px;font-size:10px;text-transform:uppercase;color:#64748B;font-weight:700}.frow{margin:6px 0}.frow input{width:100%;min-width:0;padding:11px 6px;text-align:center;font-size:16px;font-weight:700;border-radius:10px}.frow input.pre{color:#64748B}.fn{text-align:center;color:#94A3B8}.fant{font-size:12px;color:#64748B;text-align:center}.fck{height:42px;border-radius:12px;border:1.5px solid var(--line);background:var(--card-s);color:#64748B;font-size:18px;font-weight:800;cursor:pointer}.fck.on{background:#10B981;border-color:#10B981;color:#0b1020}.frow.dn input{opacity:.55}
 .fq{width:30px;height:30px;border-radius:50%;border:1.5px solid var(--line);background:var(--card-s);color:#94A3B8;font-weight:800;cursor:pointer}.fin{width:100%;margin-top:14px;padding:18px;border:0;border-radius:16px;font-size:18px;font-weight:800;color:#0b1020;background:linear-gradient(90deg,#EC4899,#F59E0B,#10B981);cursor:pointer}
 body.foco .nav{display:none}body.foco #rbar{bottom:calc(14px + env(safe-area-inset-bottom))}
+.dual{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}.dcell{background:var(--card-s);border:1px solid var(--line);border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:4px}.dcell b{font-size:24px}.dcell.off{opacity:.45}.dcell .chip{align-self:flex-start}
+#gfull{position:fixed;inset:0;z-index:60;background:#0D0E12;overflow:auto;padding:16px 16px 40px}#gfull .gx{position:sticky;top:0;display:flex;justify-content:space-between;align-items:center;background:#0D0E12;padding-bottom:10px}#gfull .gr{display:flex;align-items:center;gap:14px;padding:14px 12px;border:2px solid var(--line);border-radius:16px;margin:8px 0;background:var(--card);cursor:pointer}#gfull .gr.pick{border-color:#EC4899;background:rgba(236,72,153,.14)}#gfull .gr .gn{font-size:34px;font-weight:800;min-width:56px;text-align:center}#gfull .gr b{font-size:18px}#gfull table{font-size:18px}
 .m10{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}.m10 button{height:46px;border-radius:12px;border:2px solid var(--mc);background:transparent;color:var(--mc);font-weight:800;font-size:17px;cursor:pointer}.m10 button.on{background:var(--mc);color:#0b1020;transform:scale(1.06);box-shadow:0 4px 14px rgba(0,0,0,.3)}
 .clsr{padding:9px 0;border-top:1px solid var(--line)}.clsr.tod{background:rgba(255,255,255,.04);border-radius:8px;padding-left:6px;padding-right:6px}
 .asis.ok{border:1.5px solid #10B981}.dl{display:block;font-size:10.5px;color:var(--mut);margin-top:3px;font-weight:600}.dl.up{color:#10B981}.dl.dn{color:#ff7a59}
@@ -633,14 +635,15 @@ const TESTS = [
     const p=num(d.peso),t=num(d.talla); if(!p||!t) return null;
     const imc=p/Math.pow(t/100,2); const c=imc<18.5?mk('Bajo peso','warn'):imc<25?mk('Normal','ok'):imc<30?mk('Sobrepeso','warn'):mk('Obesidad','bad');
     const L=[]; const ci=num(d.v.cintura),ca=num(d.v.cadera),g=num(d.v.grasa),M=d.sexo==='M';
-    if(ci&&ca){ const r=ci/ca,lim=M?0.90:0.85; L.push(ln('Índice cintura-cadera',fmt(r,2),d.sexo?(r>lim?'Riesgo abdominal aumentado':'Sin riesgo'):'',d.sexo?(r>lim?'warn':'ok'):'')); }
-    if(ci){ const r=ci/t; L.push(ln('Índice cintura-talla',fmt(r,2),r<0.5?'Riesgo bajo':r<0.6?'Riesgo aumentado':'Riesgo alto',r<0.5?'ok':r<0.6?'warn':'bad'));
+    const r2=x=>Math.round(x*100)/100; let icc=null, ict=null;
+    if(ci&&ca){ const r=r2(ci/ca); const x=!d.sexo?['Elige el sexo','']:M?(r<0.90?['Riesgo bajo','ok']:r<1.00?['Riesgo moderado','warn']:['Riesgo alto','bad']):(r<0.80?['Riesgo bajo','ok']:r<0.85?['Riesgo moderado','warn']:['Riesgo alto','bad']); icc={l:'Índice cintura-cadera',v:r.toFixed(2).replace('.',','),t:x[0],c:x[1]}; L.push(ln(icc.l,icc.v,x[0],x[1])); }
+    if(ci){ const r=r2(ci/t); const x=r<0.50?['Saludable','ok']:r<0.60?['Riesgo aumentado','warn']:['Riesgo alto','bad']; ict={l:'Índice cintura-talla',v:r.toFixed(2).replace('.',','),t:x[0],c:x[1]}; L.push(ln(ict.l,ict.v,x[0],x[1]));
       if(d.sexo){ const a=M?94:80,b=M?102:88; L.push(ln('Perímetro de cintura',fmt(ci,0)+' cm',ci>=b?'Riesgo alto':ci>=a?'Riesgo aumentado':'Sin riesgo',ci>=b?'bad':ci>=a?'warn':'ok')); } }
     if(g!=null&&d.sexo){
       const x=M?(g<6?['Esencial','warn']:g<14?['Atleta','ok']:g<18?['Fitness','ok']:g<25?['Aceptable','']:['Obesidad','bad']):(g<14?['Esencial','warn']:g<21?['Atleta','ok']:g<25?['Fitness','ok']:g<32?['Aceptable','']:['Obesidad','bad']);
       L.push(ln('% de grasa',fmt(g)+'%',x[0],x[1]));
     }
-    return {valor:imc,unidad:'IMC (kg/m²)',cat:c.t,cc:c.c,lines:L,nota:'El IMC no distingue masa muscular de grasa: interprétalo junto al % de grasa y los perímetros.'};
+    return {valor:imc,unidad:'IMC (kg/m²)',cat:c.t,cc:c.c,lines:L,dual:[icc||{l:'Índice cintura-cadera',v:'–',t:'Falta cintura y cadera',c:''},ict||{l:'Índice cintura-talla',v:'–',t:'Falta cintura',c:''}],nota:'El IMC no distingue masa muscular de grasa: interprétalo junto al % de grasa y los perímetros.'};
   }},
  {id:'cooper',cap:'aer',n:'Test de Cooper (12 min)',d:'Distancia en 12 minutos → VO₂máx',needs:['sexo','edad'],
   campos:[Fd('dist','Distancia recorrida','m')],
@@ -816,7 +819,8 @@ function testPicker(cid,act){
 function resHTML(r,bd){
   if(!r) return '<div class="empty">Completa los datos para ver el resultado.</div>';
   return `<div class="row between"><div class="big">${r.valor!=null?fmt(r.valor,r.dec??1):'–'} <span class="sm mut">${esc(r.unidad||'')}</span>${bd||''}</div>${r.cat?`<span class="chip ${r.cc||''}" style="font-size:15px">${esc(r.cat)}</span>`:''}</div>`
-   +((r.lines||[]).length?`<table style="margin-top:8px">${r.lines.map(x=>`<tr><td>${esc(x.l)}</td><td><b>${esc(x.v)}</b></td><td>${x.t?`<span class="chip ${x.c||''}">${esc(x.t)}</span>`:''}</td></tr>`).join('')}</table>`:'')
+   +(r.dual?`<div class="dual">${r.dual.map(x=>`<div class="dcell ${x.v==='–'?'off':''}"><div class="xs mut">${x.l}</div><b>${esc(x.v)}</b>${x.t?`<span class="chip ${x.c||''}">${esc(x.t)}</span>`:''}</div>`).join('')}</div>`:'')
+   +((r.lines||[]).filter(x=>!(r.dual&&r.dual.some(q=>q.l===x.l))).length?`<table style="margin-top:8px">${r.lines.filter(x=>!(r.dual&&r.dual.some(q=>q.l===x.l))).map(x=>`<tr><td>${esc(x.l)}</td><td><b>${esc(x.v)}</b></td><td>${x.t?`<span class="chip ${x.c||''}">${esc(x.t)}</span>`:''}</td></tr>`).join('')}</table>`:'')
    +(r.nota?`<div class="xs mut" style="margin-top:8px">${esc(r.nota)}</div>`:'');
 }
 function calcG(d){ try{ const T=testById(d.tipo); return T&&T.calc?T.calc(d):null; }catch(e){ return null; } }
@@ -1001,7 +1005,7 @@ const BORG10=[
 const BORG20=[[6,'Ningún esfuerzo'],[7,'Extremadamente ligero'],[9,'Muy ligero'],[11,'Ligero'],[13,'Algo duro'],[15,'Duro (pesado)'],[17,'Muy duro'],[19,'Extremadamente duro'],[20,'Esfuerzo máximo']];
 const borgCol=v=>v<=3?'#7cf0a0':v<=5?'#ffd23f':v<=8?'#ff9a3c':'#ff5f7e';
 function borgHTML(){
-  return `<h3 style="margin:0 0 4px">Escala de Borg CR10 (0 a 10)</h3><div class="xs mut" style="margin-bottom:8px">Es el RPE que se anota en las sesiones. RIR = repeticiones que quedan en reserva.</div>
+  return `<div class="row between"><h3 style="margin:0 0 4px">Escala de Borg CR10 (0 a 10)</h3><button class="btn sm pri" data-a="gfull" data-v="borg">📺 Pantalla completa</button></div><div class="xs mut" style="margin-bottom:8px">Es el RPE que se anota en las sesiones. RIR = repeticiones que quedan en reserva.</div>
   <table><tr><th>RPE</th><th>Sensación</th><th>RIR</th></tr>${BORG10.map(b=>`<tr><td><b style="color:${borgCol(b[0])}">${String(b[0]).replace('.',',')}</b></td><td><b>${b[1]}</b><div class="xs mut">${b[2]}</div></td><td>${b[3]}</td></tr>`).join('')}</table>
   <h3 style="margin:14px 0 4px">Escala de Borg 6 a 20</h3><div class="xs mut" style="margin-bottom:6px">Para cardio: el número × 10 se parece a la frecuencia cardíaca (15 ≈ 150 lpm).</div>
   <table><tr><th>Valor</th><th>Percepción</th><th>FC aprox.</th></tr>${BORG20.map(b=>`<tr><td><b>${b[0]}</b></td><td>${b[1]}</td><td>${b[0]*10} lpm</td></tr>`).join('')}</table>
@@ -1078,7 +1082,7 @@ function vGuias(){
     h+=`<div class="card"><h3>Zonas de frecuencia cardíaca</h3><div class="xs mut" style="margin:4px 0 8px">Calcula la FC máxima y los latidos de cada zona para dosificar el cardio (el campo «% FC máx» de la sesión).</div>
     <div class="f"><div class="full"><label>Cliente (opcional)</label><select id="fc_c" class="gin"><option value="">–</option>${cs.map(c=>`<option value="${c.id}">${esc(c.nombre)}${c.edad?' · '+c.edad+' años':''}</option>`).join('')}</select></div>
     <div><label>Edad</label><input id="fc_e" class="gin" type="number" inputmode="numeric"></div><div><label>FC en reposo (opcional)</label><input id="fc_r" class="gin" type="number" inputmode="numeric"></div>
-    <div><label>FC máxima medida (opcional)</label><input id="fc_m" class="gin" type="number" inputmode="numeric"></div><div><label>FC actual (opcional)</label><input id="fc_a" class="gin" type="number" inputmode="numeric"></div></div><div id="fc_out"></div></div>`;
+    <div><label>FC máxima medida (opcional)</label><input id="fc_m" class="gin" type="number" inputmode="numeric"></div><div><label>FC actual (opcional)</label><input id="fc_a" class="gin" type="number" inputmode="numeric"></div></div><div class="row" style="margin-top:8px"><button class="btn sm" data-a="gfull" data-v="fc">📺 Mostrar zonas en pantalla completa</button></div><div id="fc_out"></div></div>`;
   }
   if(sub==='desc'){
     h+=`<div class="card"><h3>Temporizador de descanso</h3><div class="xs mut" style="margin:4px 0 8px">Suena y vibra al terminar. También aparece como botón ⏱ en cada ejercicio de la sesión.</div><div class="row">${[30,45,60,90,120,180,300].map(s=>`<button class="btn" data-a="reststart" data-v="${s}">${s<120?s+' s':(s/60)+' min'}</button>`).join('')}</div><div class="row" style="margin-top:8px"><input id="rest_c" type="number" inputmode="numeric" placeholder="Otro (segundos)" style="max-width:170px"><button class="btn pri" data-a="restcustom">Iniciar</button></div></div>
@@ -1109,6 +1113,12 @@ function exLive(i){
   return out.join(' · ');
 }
 document.addEventListener('input',e=>{ const p=e.target&&e.target.dataset&&e.target.dataset.b; const m=p&&p.match(/^ejercicios\.(\d+)\.(rpe|rm|fc|desc|n)$/); if(m) setTimeout(()=>{ const h=document.getElementById('xh-'+m[1]); if(h) h.textContent=exLive(Number(m[1])); },0); });
+
+/* ---- pantalla completa para mostrar al alumno ---- */
+function guiaFull(kind){ let o=document.getElementById('gfull'); if(o) o.remove(); o=document.createElement('div'); o.id='gfull'; let body='', ttl='';
+  if(kind==='borg'){ ttl='¿Qué tan pesado lo sentiste?'; body='<div class="sm mut" style="margin-bottom:6px">Toca el número que mejor lo describe. A la derecha: repeticiones que te quedaban en reserva (RIR).</div>'+BORG10.filter(b=>b[0]>=1).map(b=>`<div class="gr" onclick="document.querySelectorAll('#gfull .gr').forEach(x=>x.classList.remove('pick'));this.classList.add('pick')"><span class="gn" style="color:${borgCol(b[0])}">${String(b[0]).replace('.',',')}</span><div class="grow"><b>${b[1]}</b><div class="sm mut">${b[2]}</div></div><div class="sm mut" style="text-align:right">RIR<br><b style="font-size:20px;color:#F8FAFC">${b[3]}</b></div></div>`).join(''); }
+  else { ttl='Zonas de frecuencia cardíaca'; const src=document.getElementById('fc_out'); body=src&&src.innerHTML.trim()?src.innerHTML:'<div class="sm mut">Primero calcula las zonas con la edad del cliente.</div>'; }
+  o.innerHTML=`<div class="gx"><h2 style="margin:0">${ttl}</h2><button class="btn" data-a="gfullx">✕ Cerrar</button></div>${body}`; document.body.appendChild(o); }
 
 /* ============ Modo Profesor / Alumnos ============ */
 const FB_DEFAULT={"apiKey": "AIzaSyBSBuf4n0ICEPYyCQA14x9uFXv_O5GShUg", "projectId": "planificacion-4ce61"};
@@ -1999,6 +2009,7 @@ document.addEventListener('click',e=>{
 });
 document.addEventListener('change',e=>{
   const el=e.target; const t=el.dataset&&el.dataset.xc; if(!t) return;
+  if(t==='work'){ const w={...workCfg()}; w[el.dataset.k]=el.type==='number'?(Number(el.value)||60):el.value; metaSet({work:w}); toast('Horario guardado'); return; }
   if(t==='nutri'){ const c=clone(S.clientes[el.dataset.id]); appOf(c); c.app.nutri=el.value; put('clientes',el.dataset.id,c); }
   if(t==='gif'){ const f=el.files&&el.files[0]; readMedia(f,url=>{ const G=gifsGet(); const gid=uid(); G[gid]=url; if(gifsSet(G)){ ui.xgif=gid; render(); } }); }
   if(t==='aok'){ const k=el.dataset.v; aluSet(A=>{ A.ok=A.ok||{}; if(el.checked) A.ok[k]=1; else delete A.ok[k]; }); }
@@ -2350,6 +2361,7 @@ function vTests(){
 function vAjustes(){
   const nC=Object.keys(S.clientes).length;
   let h=`<div class="top"><div><h1>Ajustes</h1><div class="sub">Datos y respaldo</div></div></div><div class="card"><div class="row between"><div><b>Modo de la app</b><div class="xs mut">Alumno o profesor</div></div><div class="pills"><button data-x="role" data-v="">Alumno</button><button class="on">Profesor</button></div></div></div>`;
+  { const w=workCfg(); h+=`<div class="card"><h3>Horario de trabajo</h3><div class="xs mut" style="margin:4px 0 8px">Al crear un cliente, la app te sugiere las horas libres según este horario.</div><div class="f"><div><label>Desde</label><input type="time" data-xc="work" data-k="ini" value="${w.ini}"></div><div><label>Hasta</label><input type="time" data-xc="work" data-k="fin" value="${w.fin}"></div><div class="full"><label>Duración estándar de cada clase (min)</label><input type="number" inputmode="numeric" data-xc="work" data-k="dur" value="${w.dur}"></div></div></div>`; }
   h+=`<div class="card"><h3>Almacenamiento</h3><div class="sm" style="margin-top:6px">${mode==='nube'?'Los datos se guardan en la base de datos de esta página y sobreviven a cerrar o cambiar de dispositivo.':'Los datos se guardan en este teléfono, dentro de la app: se conservan al cerrarla, al reiniciar y al actualizarla. Se pierden si desinstalas la app o borras sus datos: guarda un respaldo con frecuencia.'}</div></div>`;
   h+=`<div class="card"><h3>Cargar clientes de tus Excel</h3><div class="sm mut" style="margin:6px 0 10px">Crea ${SEED_CLIENTES.length} clientes con los días, horarios, clases y valores que aparecen en tus planillas (sin duplicar los que ya existen) y la medición InBody de Cristian. El sexo solo se completó donde tus planillas lo indican: complétalo en cada ficha antes de hacer tests.</div><button class="btn pri" data-a="seed">Cargar clientes</button></div>`;
   h+=`<div class="card"><details><summary style="font-size:15px;font-weight:600;cursor:pointer">Biblioteca de movimientos <span class="xs mut" style="font-weight:400">· ${Object.keys(EXA).length} animaciones</span></summary><div class="xs mut" style="margin-top:6px">Toca uno para verlo grande. También aparecen junto al nombre de cada ejercicio de una sesión.</div><div class="lib">${Object.keys(EXA).map(k=>`<button data-a="exdemo" data-k="${k}">${exAnimK(k,{size:70})}<div><b>${EXA[k].n}</b></div><div style="color:var(--mut)">${EXA[k].mus||''}</div></button>`).join('')}</div></details></div>`;
@@ -2368,6 +2380,10 @@ function confirmBtn(key,label,act,id){
 }
 
 /* ============ Modales ============ */
+const workCfg=()=>Object.assign({ini:'07:00',fin:'21:00',dur:60},metaGet().work||{});
+const hm=s=>{ const m=/^(\d{1,2}):(\d{2})/.exec(s||''); return m?Number(m[1])*60+Number(m[2]):null; };
+const hmS=n=>pad(Math.floor(n/60))+':'+pad(n%60);
+function horasLibres(d){ const w=workCfg(), ini=hm(w.ini), fin=hm(w.fin), dur=Math.max(15,Number(w.dur)||60); if(ini==null||fin==null) return []; const otros=activos().filter(c=>c.id!==d._id&&c.hora&&(c.dias||[]).some(x=>(d.dias||[]).includes(x))); const out=[]; for(let s=ini;s+dur<=fin;s+=dur){ const ocupa=otros.some(c=>{ const h=hm(c.hora); return h!=null&&Math.abs(h-s)<dur&&(c.dias||[]).some(x=>(d.dias||[]).includes(x)); }); if(!ocupa) out.push(hmS(s)); } return out; }
 function mCliente(){
   const d=ui.d;
   return `<div class="sheet"><div class="hd"><h2>${d._new?'Nuevo cliente':'Editar cliente'}</h2><button class="btn" data-a="close">Cerrar</button></div>
@@ -2380,6 +2396,7 @@ function mCliente(){
    <div class="full"><label>Objetivo</label><input data-b="objetivo" value="${esc(d.objetivo)}" placeholder="Recomposición corporal, ganar masa muscular…"></div>
    <div class="full"><label>Días de entrenamiento</label><div class="row">${DORD.map(l=>`<button class="btn sm ${(d.dias||[]).includes(l)?'on':''}" data-a="tgdia" data-v="${l}">${DN[l].slice(0,3)}</button>`).join('')}</div></div>
    <div><label>Hora</label><input type="time" data-b="hora" value="${esc(d.hora)}"></div>
+   <div class="full">${(d.dias||[]).length?(()=>{ const L=horasLibres(d); return L.length?`<div class="xs mut" style="margin-bottom:6px">Horas libres según tu horario (toca una):</div><div class="row" style="flex-wrap:wrap;gap:6px">${L.slice(0,14).map(x=>`<button class="btn sm ${d.hora===x?'pri':''}" data-a="sethora" data-v="${x}">${x}</button>`).join('')}</div>`:'<div class="xs mut">No quedan horas libres esos días dentro de tu horario.</div>'; })():'<div class="xs mut">Elige los días para ver las horas libres.</div>'}</div>
    <div><label>Fecha de inicio</label><input type="date" data-b="inicio" value="${esc(d.inicio)}"></div>
    <div><label>N° de clases del plan</label><input type="number" inputmode="numeric" data-b="clases" data-n value="${esc(d.clases)}"></div>
    <div><label>Valor del plan ($)</label><input type="number" inputmode="numeric" data-b="valor" data-n value="${esc(d.valor)}"></div>
@@ -2659,7 +2676,7 @@ document.addEventListener('click',e=>{
       const tid=d._id||uid(); ui.modal=null; ui.d=null; put('tests',tid,out); render(true); toast('Test guardado'); break; }
     case 'savegtest': {
       const d=clone(ui.d); const r=calcG(d); if(!r||r.valor==null){ toast('Completa los datos del test'); break; }
-      const out={cid:d.cid,tipo:d.tipo,fecha:d.fecha||ymd(new Date()),sexo:d.sexo||'',edad:num(d.edad),peso:num(d.peso),talla:num(d.talla),v:d.v,res:{valor:r.valor,unidad:r.unidad||'',dec:r.dec??1,cat:r.cat||null,cc:r.cc||'',lines:r.lines||[],nota:r.nota||''}};
+      const out={cid:d.cid,tipo:d.tipo,fecha:d.fecha||ymd(new Date()),sexo:d.sexo||'',edad:num(d.edad),peso:num(d.peso),talla:num(d.talla),v:d.v,res:{valor:r.valor,unidad:r.unidad||'',dec:r.dec??1,cat:r.cat||null,cc:r.cc||'',lines:r.lines||[],dual:r.dual||null,nota:r.nota||''}};
       const tid=d._id||uid(); ui.modal=null; ui.d=null;
       const c0=S.clientes[d.cid]; if(c0){ const c=clone(c0); let ch=false; if(!c.sexo&&d.sexo){c.sexo=d.sexo;ch=true;} if((c.edad===''||c.edad==null)&&num(d.edad)){c.edad=num(d.edad);ch=true;} if(num(d.talla)&&(d.tipo==='antropo'||c.talla===''||c.talla==null)&&c.talla!==num(d.talla)){c.talla=num(d.talla);ch=true;} if(d.tipo==='antropo'&&num(d.peso)){ const ln=lastBy(ofC('mediciones',d.cid)); if(!ln||ln.fecha<=out.fecha){ c.peso=num(d.peso); ch=true; } } if(ch) put('clientes',d.cid,c); }
       put('tests',tid,out); render(true); toast('Test guardado'); break; }
@@ -2668,6 +2685,9 @@ document.addEventListener('click',e=>{
     case 'mtplsave': { const nm=((document.getElementById('mtname')||{}).value||'').trim(); if(!nm) return toast('Ponle un nombre a la plantilla'); const mc=S.macros[id]; if(!mc) return; put('plantillas',uid(),{tipo:'macro',nombre:nm,meta:mc.meta||'',semanas:clone(mc.semanas)}); toast('Plantilla guardada'); break; }
     case 'mtplapply': { const p=S.plantillas[(document.getElementById('mtsel')||{}).value]; if(!p) return; const cur=S.macros[id]; put('macros',id,{cid:id,meta:p.meta||'',inicio:(cur&&cur.inicio)||ymd(new Date()),semanas:clone(p.semanas)}); toast('Plantilla aplicada'); break; }
     case 'maccopy': { const src=S.macros[(document.getElementById('mcsel')||{}).value]; if(!src) return; const cur=S.macros[id]; put('macros',id,{cid:id,meta:src.meta||'',inicio:(cur&&cur.inicio)||ymd(new Date()),semanas:clone(src.semanas)}); toast('Macrociclo copiado'); break; }
+    case 'sethora': ui.d.hora=v; render(true); break;
+    case 'gfull': guiaFull(v); break;
+    case 'gfullx': { const o=document.getElementById('gfull'); if(o) o.remove(); break; }
     case 'macnew': put('macros',id,{cid:id,meta:MACRO_BASE.meta,inicio:ymd(new Date()),semanas:clone(MACRO_BASE.semanas)}); break;
     case 'delmac': case 'delmac_ok': if(a==='delmac'){ ui.confirm='delmac:'+id; render(); break; } ui.confirm=null; del('macros',id); break;
     /* hábitos */
