@@ -142,6 +142,7 @@ button,.btn,[data-a],input,select,textarea{touch-action:manipulation}
 .nav button:active{transform:scale(.9)}
 .card{transition:border-color .15s ease}
 body::before{transform:translateZ(0);backface-visibility:hidden}
+#app.noanim>*{animation:none!important}
 #app.enter>*:not(.nav){animation:viewIn .26s cubic-bezier(.2,.8,.25,1) both}
 #app.enter>*:not(.nav):nth-child(2){animation-delay:.03s}#app.enter>*:not(.nav):nth-child(3){animation-delay:.06s}#app.enter>*:not(.nav):nth-child(4){animation-delay:.09s}#app.enter>*:not(.nav):nth-child(n+5){animation-delay:.12s}
 @keyframes viewIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
@@ -1301,7 +1302,7 @@ async function xPull(cid){
   try{
     if(!a.sid){ const l=await dQuery(CL,cloudSave,'students','trainerUid',CL.user.uid); const m=l.find(x=>gS(x.f.clienteId)===cid); if(m){ const cc=clone(c); cc.app.sid=m.id; cc.app.email=gS(m.f.email); put('clientes',cid,cc); } }
     const sid=(S.clientes[cid].app||{}).sid; if(!sid) return;
-    const f=await dGet(CL,cloudSave,`students/${sid}/data/alumno`); TA[cid]={alumno:f?JSON.parse(gS(f.j)||'{}'):{},t:Date.now()}; render();
+    const f=await dGet(CL,cloudSave,`students/${sid}/data/alumno`); const nw=f?JSON.parse(gS(f.j)||'{}'):{}; const same=TA[cid]&&JSON.stringify(TA[cid].alumno)===JSON.stringify(nw); TA[cid]={alumno:nw,t:Date.now()}; if(!same) render();
   }catch(e){ toast(apiErr(e)); }
 }
 function mergeH(p,q){ const o={...(p||{})}; Object.entries(q||{}).forEach(([k,v])=>{ if(!o[k]||v.t>o[k].t) o[k]=v; }); return o; }
@@ -1351,7 +1352,7 @@ async function xPublish(cid,silent){
   try{
     for(const r of a.recs){ if(r.gif&&!up[r.gif]&&G[r.gif]){ await dCommit(CL,cloudSave,[dW(CL,`students/${a.sid}/data/g_${r.gif}`,{j:fS(G[r.gif]),u:fI(Date.now())})]); up[r.gif]=1; } }
     await dCommit(CL,cloudSave,[dW(CL,`students/${a.sid}/data/plan`,{j:fS(JSON.stringify(plan)),u:fI(plan.u)})]);
-    const cc=clone(S.clientes[cid]); cc.app.gifUp=up; cc.app.pubAt=plan.u; cc.app.ph=planHash(cid); put('clientes',cid,cc); if(!silent){ const chk=await dGet(CL,cloudSave,`students/${a.sid}/data/plan`); toast(chk&&gI(chk.u)===plan.u?'✅ Enviado al alumno ('+(plan.rutinas||[]).length+' rutinas, '+cards.length+' tests). Que toque ↻':'⚠️ Se envió pero no se pudo confirmar'); }
+    const cc=clone(S.clientes[cid]); cc.app.gifUp=up; cc.app.pubAt=plan.u; cc.app.ph=planHash(cid); if(silent&&!dbh){ S.clientes[cid]=cc; persistLocal(); } else put('clientes',cid,cc); if(!silent){ const chk=await dGet(CL,cloudSave,`students/${a.sid}/data/plan`); toast(chk&&gI(chk.u)===plan.u?'✅ Enviado al alumno ('+(plan.rutinas||[]).length+' rutinas, '+cards.length+' tests). Que toque ↻':'⚠️ Se envió pero no se pudo confirmar'); }
   }catch(e){ XERR=apiErr(e); toast('No se pudo enviar al alumno: '+XERR); }
 }
 let XERR='';
@@ -2346,6 +2347,10 @@ function render(force){
   if(mode==='local'){ const nCl=Object.keys(S.clientes).length; const ag=backupAge(); banner=nCl&&ag>=7?`<div class="banner ptr" data-a="tab" data-v="ajustes">${metaGet().lastBackup?'Hace '+ag+' días que no guardas un respaldo.':'Aún no has guardado un respaldo de tus datos.'} Toca para respaldar.</div>`:''; }
   if(ui.slow) banner+=`<div class="banner">No se pudo conectar con la base de datos todavía. Lo que ves puede estar desactualizado.</div>`;
   const keepScroll=window.scrollY; const oldHero=app.querySelector('.hero'); const vk=ui.tab+'|'+(ui.cid||'')+'|'+(ui.cid?ui.sub:'');
+  const htmlNew=banner+v+`<nav class="nav">${tabs.map(t=>`<button class="${ui.tab===t[0]?'on':''}" data-a="tab" data-v="${t[0]}">${ICON[t[0]==='ajustes'?'ajustes':t[0]]}<span>${t[1]}</span></button>`).join('')}</nav><button class="modebtn" data-x="role" data-v="">⇄ Modo</button>`;
+  if(!force&&!ui.modal&&!render._m&&htmlNew===render._h&&app.children.length) return;
+  render._h=htmlNew; render._m=!!ui.modal;
+  if(vk===render._vk&&app.classList.contains('enter')) app.classList.add('noanim'); else app.classList.remove('noanim');
   app.innerHTML=banner+v+`<nav class="nav">${tabs.map(t=>`<button class="${ui.tab===t[0]?'on':''}" data-a="tab" data-v="${t[0]}">${ICON[t[0]==='ajustes'?'ajustes':t[0]]}<span>${t[1]}</span></button>`).join('')}</nav><button class="modebtn" data-x="role" data-v="">⇄ Modo</button>`;
   const nh=app.querySelector('.hero'); if(oldHero&&nh) nh.replaceWith(oldHero);
   if(vk!==render._vk){ render._vk=vk; app.classList.remove('enter'); void app.offsetWidth; app.classList.add('enter'); clearTimeout(render._t); render._t=setTimeout(()=>app.classList.remove('enter'),520); }
