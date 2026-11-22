@@ -24,7 +24,7 @@ body::before{content:'';position:fixed;inset:0;z-index:-2;background:#0D0E12}
 html,body{margin:0}
 body{background:transparent;color:var(--ink);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-text-size-adjust:100%}
 body.lock{overflow:hidden}
-#app{max-width:980px;margin:0 auto;padding:0 14px 90px}
+#app{max-width:980px;margin:0 auto;padding:0 14px calc(110px + env(safe-area-inset-bottom))}
 h1,h2,h3{margin:0;line-height:1.2}
 h1{font-size:24px;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent;display:inline-block}h2{font-size:18px}h3{font-size:15px}
 .top{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:16px 0 8px}
@@ -97,7 +97,7 @@ body.foco .nav{display:none}body.foco #rbar{bottom:calc(14px + env(safe-area-ins
 .lgd{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px}
 .mg{overflow-x:auto}.mgh,.mgr{display:grid;grid-template-columns:62px repeat(7,1fr);gap:4px;margin-bottom:4px;align-items:center}.mgh b{text-align:center;font-size:11px;color:var(--mut)}.mgh b.td{color:#fff}.mgr span{font-size:11px;font-weight:700}.mgr i{height:28px;border-radius:7px;background:var(--card-s);display:flex;align-items:center;justify-content:center;font-style:normal;font-weight:800;font-size:13px}
 .om{width:100%;border-collapse:separate;border-spacing:3px;font-size:11.5px}.om th{font-size:10px;padding:4px 2px;color:var(--mut);text-align:center}.om td:first-child{white-space:nowrap;padding-right:6px;font-weight:600}.om td{text-align:center}.om td i{display:block;border-radius:6px;padding:6px 0;font-style:normal;font-size:8px;letter-spacing:1px;color:#fff;min-width:34px}.om .cur{background:rgba(255,255,255,.06)}.om th.cur{color:#fff}
-.nav{position:fixed;left:0;right:0;bottom:0;background:rgba(14,8,30,.96);border-top:1px solid var(--line);display:flex;justify-content:center;z-index:5;padding-bottom:env(safe-area-inset-bottom)}
+.nav{position:fixed;left:0;right:0;bottom:0;background:#161821;border-top:1px solid var(--line);display:flex;justify-content:center;z-index:5;padding-bottom:env(safe-area-inset-bottom)}
 .nav button{flex:1;max-width:180px;background:none;border:0;padding:10px 4px 9px;color:var(--mut);font:inherit;font-size:12px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px}
 .nav button svg{width:22px;height:22px}
 .nav button.on{color:var(--acc);font-weight:600}
@@ -811,11 +811,11 @@ function testRes(t){
 function lastMark(cid,tipo){ if(!cid) return ''; const l=ofC('tests',cid).filter(x=>x.tipo===tipo&&valorOf(x)!=null).sort((x,y)=>y.fecha.localeCompare(x.fecha))[0]; if(!l) return ''; const r=l.res||{}, u=l.tipo==='fuerza'?'pts':l.tipo==='harvard'?'ml/kg/min':(r.unidad||''); return `<div class="xs" style="color:#94A3B8;margin-top:2px">Último: <b>${fmt(valorOf(l),r.dec==null?1:r.dec)} ${esc(u)}</b> · ${fdate(l.fecha)}${r.cat?' · '+esc(r.cat):''}</div>`; }
 function testPicker(cid,act){
   const cc=cid||ui.testFilter||'';
-  return CAPS.map((cp,i)=>`<details class="card" ${i===1?'open':''} style="padding:10px 14px"><summary style="font-size:15px;font-weight:600;color:var(--ink);margin:0">${cp.n} <span class="xs mut" style="font-weight:400">· ${TESTS.filter(t=>t.cap===cp.id).length===1?'1 test':TESTS.filter(t=>t.cap===cp.id).length+' tests'}</span></summary><div class="xs mut" style="margin:4px 0 6px">${cp.d}</div>${TESTS.filter(t=>t.cap===cp.id).map(t=>`<div class="row between" style="padding:8px 0;border-top:1px solid var(--line)"><div class="grow"><b class="sm">${t.n}</b><div class="xs mut">${t.d}</div>${lastMark(cc,t.id)}</div><button class="btn sm pri" data-a="${act}" data-id="${cid||''}" data-v="${t.id}">Registrar</button></div>`).join('')}</details>`).join('');
+  return CAPS.map((cp,i)=>`<details class="card" ${i===1?'open':''} style="padding:10px 14px"><summary style="font-size:15px;font-weight:600;color:var(--ink);margin:0">${cp.n} <span class="xs mut" style="font-weight:400">· ${TESTS.filter(t=>t.cap===cp.id).length===1?'1 test':TESTS.filter(t=>t.cap===cp.id).length+' tests'}</span></summary><div class="xs mut" style="margin:4px 0 6px">${cp.d}</div>${TESTS.filter(t=>t.cap===cp.id).map(t=>`<div class="row between trow" data-s="${esc((t.n+' '+t.d).toLowerCase())}" style="padding:8px 0;border-top:1px solid var(--line)"><div class="grow"><b class="sm">${t.n}</b><div class="xs mut">${t.d}</div>${lastMark(cc,t.id)}</div><button class="btn sm pri" data-a="${act}" data-id="${cid||''}" data-v="${t.id}">${cc&&lastMark(cc,t.id)?'🕘 Nuevo registro':'Registrar'}</button></div>`).join('')}</details>`).join('');
 }
-function resHTML(r){
+function resHTML(r,bd){
   if(!r) return '<div class="empty">Completa los datos para ver el resultado.</div>';
-  return `<div class="row between"><div class="big">${r.valor!=null?fmt(r.valor,r.dec??1):'–'} <span class="sm mut">${esc(r.unidad||'')}</span></div>${r.cat?`<span class="chip ${r.cc||''}" style="font-size:15px">${esc(r.cat)}</span>`:''}</div>`
+  return `<div class="row between"><div class="big">${r.valor!=null?fmt(r.valor,r.dec??1):'–'} <span class="sm mut">${esc(r.unidad||'')}</span>${bd||''}</div>${r.cat?`<span class="chip ${r.cc||''}" style="font-size:15px">${esc(r.cat)}</span>`:''}</div>`
    +((r.lines||[]).length?`<table style="margin-top:8px">${r.lines.map(x=>`<tr><td>${esc(x.l)}</td><td><b>${esc(x.v)}</b></td><td>${x.t?`<span class="chip ${x.c||''}">${esc(x.t)}</span>`:''}</td></tr>`).join('')}</table>`:'')
    +(r.nota?`<div class="xs mut" style="margin-top:8px">${esc(r.nota)}</div>`:'');
 }
@@ -1371,7 +1371,8 @@ function sesRut(cid){
 async function xPublish(cid,silent){
   const c=S.clientes[cid]; const a=appOf(c); if(!a.sid) return silent||toast('El alumno aún no se registra con el código');
   const tsx=ofC('tests',cid).sort((x,y)=>x.fecha.localeCompare(y.fecha)).map(t=>{ const T=testById(t.tipo), v=valorOf(t), r=t.res||{}; return {k:t.tipo,n:testName(t),cap:T?T.cap:'',f:t.fecha,v:(v==null||isNaN(v))?null:Math.round(v*100)/100,u:t.tipo==='fuerza'?'pts':t.tipo==='harvard'?'ml/kg/min':(r.unidad||''),cat:r.cat||'',s:(catScore(r.cat)!=null?catScore(r.cat):({ok:4,warn:3,bad:1.5})[r.cc]??null)}; });
-  const meds=ofC('mediciones',cid).sort((x,y)=>x.fecha.localeCompare(y.fecha)).map(m=>({f:m.fecha,peso:m.peso,mm:m.masaMusc,mg:m.masaGrasa}));
+  const meds=ofC('mediciones',cid).sort((x,y)=>x.fecha.localeCompare(y.fecha)).map(m=>({f:m.fecha,peso:m.peso,mm:m.masaMusc,mg:m.masaGrasa,cin:m.cintura!=null?m.cintura:undefined}));
+  ofC('tests',cid).filter(t=>t.tipo==='antropo').sort((x,y)=>x.fecha.localeCompare(y.fecha)).forEach(t=>{ const o=meds.find(m=>m.f===t.fecha)||(meds.push({f:t.fecha}),meds[meds.length-1]); if(o.peso==null&&t.peso!=null) o.peso=t.peso; if(t.res&&t.res.valor!=null) o.imc=Math.round(t.res.valor*10)/10; const ci=num((t.v||{}).cintura); if(ci!=null) o.cin=ci; }); meds.sort((x,y)=>x.f.localeCompare(y.f));
   const wk={}; ofC('sesiones',cid).forEach(s=>{ if(s.fecha) { const k=wkKey(parseD(s.fecha)); wk[k]=(wk[k]||0)+1; } });
   const ccS={ok:4,warn:3,bad:1.5}; const sc=r=>{ const s=catScore(r.cat); return s!=null?s:(ccS[r.cc]!=null?ccS[r.cc]:null); }; const unit=t=>t.tipo==='fuerza'?'pts':t.tipo==='harvard'?'ml/kg/min':((t.res||{}).unidad||'');
   const byT={}; ofC('tests',cid).sort((x,y)=>x.fecha.localeCompare(y.fecha)).forEach(t=>{ (byT[t.tipo]=byT[t.tipo]||[]).push(t); });
@@ -1380,7 +1381,7 @@ async function xPublish(cid,silent){
   const gs={}; Object.keys(S.clientes).forEach(id=>{ const b={}; ofC('tests',id).sort((x,y)=>x.fecha.localeCompare(y.fecha)).forEach(t=>{ b[t.tipo]=t; }); const cp={}; Object.values(b).forEach(t=>{ const T=testById(t.tipo), s=sc(t.res||{}); if(T&&s!=null) (cp[T.cap]=cp[T.cap]||[]).push(s); }); Object.entries(cp).forEach(([k,v])=>{ (gs[k]=gs[k]||[]).push(v.reduce((p,q)=>p+q,0)/v.length); }); });
   const grp={}; Object.entries(gs).forEach(([k,v])=>{ if(v.length>=3) grp[k]=Math.round(10*v.reduce((p,q)=>p+q,0)/v.length)/10; });
   const sr=sesRut(cid); const dias2={...sr.dias,...a.dias};
-  const plan={nombre:c.nombre.trim(),objetivos:a.objetivos,rutinas:[...(a.rutinas||[]),...sr.rutinas.filter(r=>!(a.ocultas||[]).includes(r.id))],hechos:a.hechos||{},msg:a.msg||null,fel:a.fel||{},pn:pnGet(),mus:musFromSes(cid),macro:(S.macros[cid]?{meta:S.macros[cid].meta||'',inicio:S.macros[cid].inicio||'',semanas:S.macros[cid].semanas}:null),nutri:a.nutri,sch:a.sch||null,dias:dias2,tnotas:a.tnotas,recs:a.recs,prog:{tests:tsx,meds,wk,cards,grp,sd:ofC('sesiones',cid).map(s=>s.fecha).filter(Boolean).slice(-200),sl:sesLoads(cid),zs:zsFromSes(cid),dl:sesDay(cid),xw:sesEx(cid),ses:sesCompact(cid)},u:Date.now()}; const G=gifsGet(); const up={...a.gifUp};
+  const plan={nombre:c.nombre.trim(),objetivos:a.objetivos,rutinas:[...(a.rutinas||[]),...sr.rutinas.filter(r=>!(a.ocultas||[]).includes(r.id))],hechos:a.hechos||{},msg:a.msg||null,fel:a.fel||{},pn:pnGet(),perf:(()=>{ const pw=meds.filter(m=>m.peso!=null).slice(-1)[0]; return {peso:pw?pw.peso:c.peso,f:pw?pw.f:'',talla:c.talla}; })(),mus:musFromSes(cid),macro:(S.macros[cid]?{meta:S.macros[cid].meta||'',inicio:S.macros[cid].inicio||'',semanas:S.macros[cid].semanas}:null),nutri:a.nutri,sch:a.sch||null,dias:dias2,tnotas:a.tnotas,recs:a.recs,prog:{tests:tsx,meds,wk,cards,grp,sd:ofC('sesiones',cid).map(s=>s.fecha).filter(Boolean).slice(-200),sl:sesLoads(cid),zs:zsFromSes(cid),dl:sesDay(cid),xw:sesEx(cid),ses:sesCompact(cid)},u:Date.now()}; const G=gifsGet(); const up={...a.gifUp};
   try{
     for(const r of a.recs){ if(r.gif&&!up[r.gif]&&G[r.gif]){ await dCommit(CL,cloudSave,[dW(CL,`students/${a.sid}/data/g_${r.gif}`,{j:fS(G[r.gif]),u:fI(Date.now())})]); up[r.gif]=1; } }
     await dCommit(CL,cloudSave,[dW(CL,`students/${a.sid}/data/plan`,{j:fS(JSON.stringify(plan)),u:fI(plan.u)})]);
@@ -1429,7 +1430,7 @@ function autoPub(){
 }
 function planHash(cid){
   const c=S.clientes[cid], a=appOf(c); const tsx=ofC('tests',cid).map(t=>[t.id,t.fecha,valorOf(t),(t.res||{}).cat]), meds=ofC('mediciones',cid).map(m=>[m.id,m.fecha,m.peso,m.masaMusc,m.masaGrasa]), ses=ofC('sesiones',cid).map(s=>s.fecha);
-  return hsh(JSON.stringify([c.nombre,a.objetivos,a.rutinas,a.nutri,a.dias,a.tnotas,a.recs,a.hechos,a.ocultas,JSON.stringify(sesLoads(cid)),JSON.stringify(sesDay(cid)),JSON.stringify(sesEx(cid)),JSON.stringify(sesCompact(cid)),a.sch,a.msg,a.fel,pnGet(),ofC('sesiones',cid).length,musFromSes(cid),S.macros[cid],tsx,meds,ses,hsh(JSON.stringify(ofC('sesiones',cid)))]));
+  return hsh(JSON.stringify([c.nombre,c.peso,c.talla,a.objetivos,a.rutinas,a.nutri,a.dias,a.tnotas,a.recs,a.hechos,a.ocultas,JSON.stringify(sesLoads(cid)),JSON.stringify(sesDay(cid)),JSON.stringify(sesEx(cid)),JSON.stringify(sesCompact(cid)),a.sch,a.msg,a.fel,pnGet(),ofC('sesiones',cid).length,musFromSes(cid),S.macros[cid],tsx,meds,ses,hsh(JSON.stringify(ofC('sesiones',cid)))]));
 }
 { const _pl=persistLocal; persistLocal=function(){ _pl.apply(this,arguments); try{ autoPub(); }catch(e){} }; }
 /* ===================== ALUMNO ===================== */
@@ -1791,7 +1792,7 @@ function famDonut(md){ const f={'Tren superior':0,'Tren inferior':0,'Core':0}; m
 function bodyCard(P){ const M=((P.prog||{}).meds)||[]; if(!M.length) return ''; const l=M[M.length-1];
   const row=(ic,n,k,u,gain,c)=>{ const s=M.filter(m=>m[k]!=null&&m[k]!=='').map(m=>Number(m[k])); if(!s.length) return ''; const d=s.length>1?s[s.length-1]-s[0]:null, good=d==null?null:(gain?d>=0:d<=0);
     return `<div class="brow"><div class="grow"><div class="xs mut">${ic} ${n}</div><div style="font-size:24px;font-weight:800">${s[s.length-1]}<span class="sm mut"> ${u}</span></div>${d!=null?`<div class="xs" style="color:${good?'#10B981':'#e0a82e'}">${d>0?'▲ +':d<0?'▼ ':''}${Math.round(d*10)/10} desde el inicio</div>`:''}</div>${chSpark(s,c)}</div>`; };
-  return `<div class="card"><h3>Tu cuerpo</h3><div class="xs mut">Última medición: ${fdate(l.f)}</div>${row('⚖️','Peso','peso','kg',false,'#3fa9ff')}${row('💪','Masa muscular','mm','kg',true,'#2ee6c5')}${row('🔥','Masa grasa','mg','kg',false,'#ff9f43')}</div>`; }
+  return `<div class="card"><h3>Tu cuerpo</h3><div class="xs mut">Última medición: ${fdate(l.f)}</div>${row('⚖️','Peso','peso','kg',false,'#3fa9ff')}${row('💪','Masa muscular','mm','kg',true,'#2ee6c5')}${row('🔥','Masa grasa','mg','kg',false,'#ff9f43')}${row('📏','IMC','imc','',false,'#8f8cff')}${row('📐','Cintura','cin','cm',false,'#F59E0B')}</div>`; }
 function heatmap(P,AL){ const dates=new Set(((P.prog||{}).sd)||[]); hDone(mergeH(P.hechos,AL.hechos)).forEach(([k,v])=>dates.add(v.d)); const t=new Date(), mon=new Date(t.getFullYear(),t.getMonth(),t.getDate()-((t.getDay()+6)%7)-49), L=['L','M','X','J','V','S','D']; let cols='',tot=0; const dow=[0,0,0,0,0,0,0];
   for(let w=0;w<8;w++){ let c=''; for(let d=0;d<7;d++){ const x=new Date(mon.getFullYear(),mon.getMonth(),mon.getDate()+w*7+d), ds=ymd(x), on=dates.has(ds), fut=x>t; if(on){ tot++; dow[d]++; } c+=`<i class="hm ${on?'on':''} ${fut?'fu':''}" title="${ds}"></i>`; } cols+=`<div class="hmc">${c}</div>`; }
   const mx=Math.max(...dow), best=mx?['lunes','martes','miércoles','jueves','viernes','sábado','domingo'][dow.indexOf(mx)]:null;
@@ -1847,8 +1848,8 @@ function aluRender(){
     h+=`<div class="seg">${PV.map(([k,l])=>`<button class="${pv===k?'on':''}" data-x="apv" data-v="${k}">${l}</button>`).join('')}</div>`;
     const H=mergeH(P.hechos,AL.hechos), O=ptOpts(P);
     if(pv==='res'){ const mm=AU.pm||ymd(new Date()).slice(0,7); h+=mesHdr(mm)+((AU.mv==='det')?detalleView(P,AL):mesView(P,AL)); }
-    if(pv==='res'&&AU.mv!=='det'){ const S2=scoreData(P,AL); h+=`<div class="card"><div class="row" style="gap:12px"><div>${scoreRing(S2.tot)}</div><div class="grow"><h3>Resumen general</h3>${sbar('🏋️','Constancia',S2.con,'#ff4d6d')}${sbar('🔋','Recuperación',S2.rec,'#2ee6c5')}${S2.cond!=null?sbar('💪','Condición',S2.cond,'#3fa9ff'):''}</div></div></div>`+bodyCard(P)+resumenCard(P)+`<div class="card"><h3>Este mes</h3>${monthStats(P,AL)}</div><div class="card"><h3>Tu actividad (últimas 8 semanas)</h3>${heatmap(P,AL)}</div>${(()=>{ const D=dowData(P,AL), b=D.reduce((x,y)=>y.v>x.v?y:x,D[0]); return kcard('Tus días de entrenamiento',b.v?b.tip.split(':')[0]:'–',b.v?{t:'Tu día más frecuente',c:'mu'}:null,chBars(D,{c:GRN,h:120,empty:['Sin días registrados','Entrena para ver qué días rindes más.']})); })()}${(()=>{ const V=volSem(mergeH(P.hechos,AL.hechos)), c=V[V.length-1].v, p=V[V.length-2]?V[V.length-2].v:0; return kcard('Peso total por semana',fk(c)+'<small>'+UL()+'</small>',cmpOf(c,p,'semana pasada'),chBars(V,{c:AMB,fmt:v=>v>=1000?(v/1000).toFixed(1)+'k':v,empty:NOPESO})); })()}${aWeeks(P)}`+moodCard(AL)+testsGlance(P)+(()=>{ const R=recordsList(H); return R.length?`<div class="card"><h3>🏆 Tus récords</h3><div class="xs mut">Tu mejor levantada estimada por ejercicio.</div>${R.map(x=>`<div class="row between" style="padding:6px 0;border-top:1px solid var(--line)"><div><b class="sm">${esc(x.n)}</b><div class="xs mut">${fdate(x.d)}</div></div><b>${x.r?x.r+'×':''}${x.l} ${UL()}</b></div>`).join('')}</div>`:''; })()+macroMini(P)+`<div class="xs mut" style="text-align:center;margin:8px 0">Toca las pestañas de arriba para ver más detalle: capacidades, músculos y tu plan.</div>`; }
-    if(pv==='cuerpo'){ h+=`<div style="margin:4px 0"><h2>Tus músculos</h2></div>`; const md=musData(P,H); const mx=Math.max(1,...md.map(x=>x.v)); const RD=md.map(x=>({id:x.g,n:gname(x.g,1),first:x.v*5/mx,last:x.v*5/mx}));
+    if(pv==='res'&&AU.mv!=='det'){ const S2=scoreData(P,AL); h+=`<div class="card"><div class="row" style="gap:12px"><div>${scoreRing(S2.tot)}</div><div class="grow"><h3>Resumen general</h3>${sbar('🏋️','Constancia',S2.con,'#ff4d6d')}${sbar('🔋','Recuperación',S2.rec,'#2ee6c5')}${S2.cond!=null?sbar('💪','Condición',S2.cond,'#3fa9ff'):''}</div></div></div>`+resumenCard(P)+`<div class="card"><h3>Este mes</h3>${monthStats(P,AL)}</div><div class="card"><h3>Tu actividad (últimas 8 semanas)</h3>${heatmap(P,AL)}</div>${(()=>{ const D=dowData(P,AL), b=D.reduce((x,y)=>y.v>x.v?y:x,D[0]); return kcard('Tus días de entrenamiento',b.v?b.tip.split(':')[0]:'–',b.v?{t:'Tu día más frecuente',c:'mu'}:null,chBars(D,{c:GRN,h:120,empty:['Sin días registrados','Entrena para ver qué días rindes más.']})); })()}${(()=>{ const V=volSem(mergeH(P.hechos,AL.hechos)), c=V[V.length-1].v, p=V[V.length-2]?V[V.length-2].v:0; return kcard('Peso total por semana',fk(c)+'<small>'+UL()+'</small>',cmpOf(c,p,'semana pasada'),chBars(V,{c:AMB,fmt:v=>v>=1000?(v/1000).toFixed(1)+'k':v,empty:NOPESO})); })()}${aWeeks(P)}`+moodCard(AL)+testsGlance(P)+(()=>{ const R=recordsList(H); return R.length?`<div class="card"><h3>🏆 Tus récords</h3><div class="xs mut">Tu mejor levantada estimada por ejercicio.</div>${R.map(x=>`<div class="row between" style="padding:6px 0;border-top:1px solid var(--line)"><div><b class="sm">${esc(x.n)}</b><div class="xs mut">${fdate(x.d)}</div></div><b>${x.r?x.r+'×':''}${x.l} ${UL()}</b></div>`).join('')}</div>`:''; })()+macroMini(P)+`<div class="xs mut" style="text-align:center;margin:8px 0">Toca las pestañas de arriba para ver más detalle: capacidades, músculos y tu plan.</div>`; }
+    if(pv==='cuerpo'){ h+=bodyCard(P)+`<div style="margin:4px 0"><h2>Tus músculos</h2></div>`; const md=musData(P,H); const mx=Math.max(1,...md.map(x=>x.v)); const RD=md.map(x=>({id:x.g,n:gname(x.g,1),first:x.v*5/mx,last:x.v*5/mx}));
       const avg=Math.round(md.filter(x=>x.l).reduce((s,x)=>s+x.rec,0)/Math.max(1,md.filter(x=>x.l).length))||100;
       h+=`<div class="card"><div class="row" style="gap:12px"><div style="width:90px">${aRing(avg,100,avg>=80?GRN:avg>=30?AMB:RED).replace('>'+avg+'/100<','>'+avg+'%<')}</div><div class="grow"><h3>Recuperación general</h3><div class="xs mut">Promedio de tus grupos musculares según lo que entrenaste. 100% = listo para entrenar.</div></div></div></div>${famDonut(md).length?`<div class="card"><h3>Cómo repartes tu entrenamiento</h3><div class="xs mut">Series de los últimos 30 días por zona del cuerpo.</div>${chDonut(famDonut(md))}</div>`:''}<div class="card"><h3>Recuperación por músculo</h3><div class="xs mut" style="margin-bottom:4px">Los más cansados aparecen primero.</div>${recList(md.slice().sort((x,y)=>x.rec-y.rec||y.v-x.v))}</div><div class="card"><h3>Músculos trabajados este mes</h3><div class="xs mut">Mientras más grande, más series hiciste. Sirve para ver qué zonas estás descuidando.</div>${aRadar(RD,'')}</div>`; }
     if(pv==='cuerpo'){ h+=`<div style="margin:14px 0 4px"><h2>Condición física</h2><div class="sm mut">Tus capacidades y resultados de tests.</div></div>`+capCards(P,true)+fuerzaCard(H); const CD=(((P.prog||{}).cards)||[]); if(CD.length) h+=`<div style="margin:14px 0 4px"><h2>Tus tests</h2><div class="sm mut">Cada tarjeta te explica tu resultado en simple.</div></div>`+CD.map(testCard).join('');
@@ -1856,7 +1857,7 @@ function aluRender(){
     if(pv==='plan'){ { const tr=new Set(((P.prog||{}).sd)||[]); const lo={...((P.prog||{}).sl||{})}; const zh=[]; hDone(H).forEach(([k,v])=>{ tr.add(v.d); lo[v.d]=Math.max(lo[v.d]||0,(v.sets||[]).length*6); (v.sets||[]).forEach(s=>zh.push({n:v.n,r:s.r,l:s.l})); }); const zp=(P.prog||{}).zs, zs=(zp&&zp.some(x=>x))?zp:zonasDe(zh.filter(x=>x.r&&x.l)); h+=planMaestro({m:P.macro,loads:lo,zs,trained:tr,dias:P.dias||{}}); } h+=`<div class="card"><h3>Historial de ejercicios</h3><div class="xs mut">Lo que ya completaste. Aquí queda guardado.</div>${histHTML(H,'aexundo','')}</div>`; }
   }
   if(AU.tab==='comida') h+=comidaView(P,AL);
-  if(AU.tab==='perfil'){ const p=AL.perfil||{}; const F=(k,l,t)=>`<div><label>${l}</label><input data-xc="aperfil" data-k="${k}" type="${t||'text'}" value="${esc(p[k]!=null?p[k]:(k==='nombre'?(P.nombre||ST.nombre||''):''))}"></div>`;
+  if(AU.tab==='perfil'){ const p=AL.perfil||{}; const PF=P.perf||{}; const pv2=k=>{ const tv=k==='peso'?PF.peso:k==='estatura'?PF.talla:null, sv=p[k]; if(tv!=null&&tv!==''&&(sv===''||sv==null||(k==='peso'&&PF.f&&PF.f>(p._pt?ymd(new Date(p._pt)):'0'))||(k==='estatura'&&!p._et))) return tv; return sv!=null?sv:(k==='nombre'?(P.nombre||ST.nombre||''):''); }; const F=(k,l,t)=>`<div><label>${l}</label><input data-xc="aperfil" data-k="${k}" type="${t||'text'}" value="${esc(pv2(k))}"></div>`;
     h+=`<div class="card"><h3>Mis datos personales</h3><div class="f">${F('nombre','Nombre')}${F('edad','Edad','number')}${F('peso','Peso (kg)','number')}${F('estatura','Estatura (cm)','number')}${F('tel','Teléfono','tel')}</div><div class="xs mut" style="margin-top:6px">Tu profesor ve estos datos. Se guardan al salir del campo.</div></div><div class="card"><div class="sm">Cuenta: <b>${esc(ST.user.email||'')}</b></div><div class="xs mut" style="margin-top:6px">☁️ ${esc(syncT)}</div><button class="btn bad" style="margin-top:8px" data-x="aout">Cerrar sesión</button></div><div class="card"><h3>Preferencias</h3><div class="row between" style="margin-top:12px"><div><b>Unidad de peso</b><div class="xs mut">Para los pesos que levantas</div></div><div class="pills"><button class="${UL()==='kg'?'on':''}" data-x="aunit" data-v="kg">kg</button><button class="${UL()==='lb'?'on':''}" data-x="aunit" data-v="lb">lb</button></div></div><div class="row between" style="margin-top:16px"><div><b>Modo de la app</b><div class="xs mut">Alumno o profesor</div></div><div class="pills"><button class="on">Alumno</button><button data-x="role" data-v="">Profesor</button></div></div></div>`; }
   { const fk=AU.tab+(AU.tab==='prog'?pvKey():''); app.classList.toggle('fresh',AU.lastKey!==fk); AU.lastKey=fk; } setTimeout(aluAnim,0); const rsc=keepSc(app); app.innerHTML=h+`<nav class="nav">${tabs.map(t=>`<button class="${AU.tab===t[0]?'on':''}" data-x="atab" data-v="${t[0]}">${t[2]}<span>${t[1]}</span></button>`).join('')}</nav>`; if(!app.classList.contains('fresh')) rsc();
 }
@@ -2002,7 +2003,7 @@ document.addEventListener('change',e=>{
   if(t==='gif'){ const f=el.files&&el.files[0]; readMedia(f,url=>{ const G=gifsGet(); const gid=uid(); G[gid]=url; if(gifsSet(G)){ ui.xgif=gid; render(); } }); }
   if(t==='aok'){ const k=el.dataset.v; aluSet(A=>{ A.ok=A.ok||{}; if(el.checked) A.ok[k]=1; else delete A.ok[k]; }); }
   if(t==='amoodtxt'){ const d=ymd(new Date()); aluSet(A=>{ A.animo=A.animo||{}; const o=A.animo[d]; if(o) o.t=el.value; else if(el.value) A.animo[d]={v:5,s:10,t:el.value}; }); }
-  if(t==='aperfil'){ const k=el.dataset.k; aluSet(A=>{ A.perfil=A.perfil||{}; A.perfil[k]=el.type==='number'?(el.value===''?'':Number(el.value)):el.value.trim(); }); }
+  if(t==='aperfil'){ const k=el.dataset.k; aluSet(A=>{ A.perfil=A.perfil||{}; A.perfil[k]=el.type==='number'?(el.value===''?'':Number(el.value)):el.value.trim(); if(k==='peso') A.perfil._pt=Date.now(); if(k==='estatura') A.perfil._et=1; }); }
 });
 document.addEventListener('visibilitychange',()=>{ if(!document.hidden&&ROLE==='alumno') aluSync(false); });
 window.addEventListener('online',()=>{ if(ROLE==='alumno') aluSync(false); });
@@ -2339,7 +2340,7 @@ function vTests(){
   const cs=activos().sort(byName);
   let h=`<div class="top"><div><h1>Tests</h1><div class="sub">${TESTS.length} tests en ${CAPS.length} capacidades físicas</div></div></div>`;
   h+=`<div class="card"><label>1. Elige el cliente</label><select id="tclient"><option value="">Elegir cliente…</option>${cs.map(c=>`<option value="${c.id}" ${ui.testFilter===c.id?'selected':''}>${esc(c.nombre)}</option>`).join('')}</select></div>`;
-  h+=`<div class="sm mut" style="margin:10px 2px 0">2. Elige la capacidad y el test</div>`+testPicker('','newtest2');
+  h+=`<div class="sm mut" style="margin:10px 2px 6px">2. Elige la capacidad y el test</div><input id="tsearch" type="search" placeholder="🔍 Buscar test… (ej.: plancha, Cooper)" value="${esc(ui.tq||'')}" style="margin-bottom:8px">`+testPicker('','newtest2');
   h+=`<h2 style="margin-top:18px">Historial</h2>`;
   if(!ts.length) return h+`<div class="card empty">Aún no hay tests.</div>`;
   ts.slice(0,60).forEach(t=>{ const c=cli(t.cid); h+=`<div class="card ptr" data-a="edittest" data-id="${t.id}"><div class="row between"><div><b>${esc(c?c.nombre:'(cliente eliminado)')}</b><div class="sm mut">${esc(testName(t))} · ${fdate(t.fecha)}</div></div><div style="text-align:right">${testRes(t)}</div></div></div>`; });
@@ -2474,7 +2475,7 @@ function derive(){
     });
     set('ftot',r.n?r.total:'–'); set('fcat',r.n?(r.complete?`<span class="chip ${CAT_COL[catTotal(r.total)]||''}" style="font-size:15px">${catTotal(r.total)}</span>`:`<span class="mut sm">Faltan ${EJ_FUERZA.length-r.n} ejercicio(s)</span>`):'');
   }
-  if(m==='gtest'){ set('gres',resHTML(calcG(d))); }
+  if(m==='gtest'){ const r=calcG(d); let bd=''; if(r&&r.valor!=null&&d.cid){ const pv=ofC('tests',d.cid).filter(x=>x.tipo===d.tipo&&x.id!==d._id&&valorOf(x)!=null).sort((x,y)=>y.fecha.localeCompare(x.fecha))[0]; if(pv){ const df=Math.round((r.valor-valorOf(pv))*100)/100; bd=` <span class="chip gr" style="font-size:12px;vertical-align:middle">${df<0?'▼ ':df>0?'▲ +':'= '}${df?fmt(df,r.dec??1):''} vs anterior</span>`; } } set('gres',resHTML(r,bd)); }
   if(m==='harvard'){
     const r=calcHarvard(d);
     set('hres', r?`<div class="row between"><div><div class="sm mut">VO₂máx estimado (ajustado por edad)</div><div class="big">${fmt(r.vo2aj,1)} <span class="sm mut">ml/kg/min</span></div><div class="xs mut">Tabla de Harvard: ${r.vo2tabla} × factor de edad ${fmt(r.factor,2)}</div></div><div>${r.cat?`<span class="chip ${CAT_COL[r.cat]||''}" style="font-size:15px">${r.cat}</span>`:'<span class="mut sm">Falta la edad</span>'}</div></div>`:'<div class="empty">Completa sexo, peso y pulsaciones para calcular.</div>');
@@ -2527,7 +2528,10 @@ function render(force){
   else { ov.innerHTML=''; ov.classList.remove('on'); document.body.classList.remove('lock'); }
   if(!force) window.scrollTo(0,keepScroll);
   try{ guiasInit(); }catch(e){}
+  applyTq();
 }
+function applyTq(){ const q=(ui.tq||'').toLowerCase().trim(); if(ui.tab!=='tests') return; document.querySelectorAll('#app details.card').forEach(dt=>{ const rows=dt.querySelectorAll('.trow'); let n=0; rows.forEach(r=>{ const ok=!q||r.dataset.s.includes(q); r.style.display=ok?'':'none'; if(ok) n++; }); dt.style.display=n?'':'none'; if(q&&n) dt.open=true; }); }
+document.addEventListener('input',e=>{ if(e.target&&e.target.id==='tsearch'){ ui.tq=e.target.value; applyTq(); } });
 function openModal(type,d){ ui.modal=type; ui.d=d; ui.confirm=null; const ov=$('#overlay'); ov.classList.remove('opening'); render(true); void ov.offsetWidth; ov.classList.add('opening'); clearTimeout(openModal._t); openModal._t=setTimeout(()=>ov.classList.remove('opening'),450); ov.scrollTop=0; }
 function closeModal(){ ui.modal=null; ui.d=null; ui.confirm=null; render(true); }
 
@@ -2545,7 +2549,10 @@ function testDraft(cid,tipo){
 function gDraft(cid,tipo){
   const c=cli(cid); const m=lastBy(ofC('mediciones',cid)); const T=testById(tipo); const v={};
   (T.campos||[]).forEach(f=>{ v[f.k]=f.def!==undefined?(typeof f.def==='function'?f.def(c):f.def):''; });
-  return {_new:true,cid,tipo,fecha:ymd(new Date()),sexo:c.sexo||'',edad:c.edad??'',peso:m&&m.peso!=null?m.peso:(c.peso??''),talla:c.talla??'',v};
+  const tt=ofC('tests',cid).filter(x=>x.peso!=null||x.talla!=null).sort((x,y)=>y.fecha.localeCompare(x.fecha));
+  const tT=tt.find(x=>x.talla!=null), tP=tt.find(x=>x.peso!=null);
+  const cand=[m&&m.peso!=null?{f:m.fecha,p:m.peso}:null,tP?{f:tP.fecha,p:tP.peso}:null].filter(Boolean).sort((x,y)=>y.f.localeCompare(x.f))[0];
+  return {_new:true,cid,tipo,fecha:ymd(new Date()),sexo:c.sexo||'',edad:c.edad??'',peso:cand?cand.p:(c.peso??''),talla:(c.talla!=null&&c.talla!=='')?c.talla:(tT?tT.talla:''),v};
 }
 document.addEventListener('input',e=>{
   const el=e.target; if(el.id==='tplsel') return;
@@ -2654,7 +2661,7 @@ document.addEventListener('click',e=>{
       const d=clone(ui.d); const r=calcG(d); if(!r||r.valor==null){ toast('Completa los datos del test'); break; }
       const out={cid:d.cid,tipo:d.tipo,fecha:d.fecha||ymd(new Date()),sexo:d.sexo||'',edad:num(d.edad),peso:num(d.peso),talla:num(d.talla),v:d.v,res:{valor:r.valor,unidad:r.unidad||'',dec:r.dec??1,cat:r.cat||null,cc:r.cc||'',lines:r.lines||[],nota:r.nota||''}};
       const tid=d._id||uid(); ui.modal=null; ui.d=null;
-      const c0=S.clientes[d.cid]; if(c0){ const c=clone(c0); let ch=false; if(!c.sexo&&d.sexo){c.sexo=d.sexo;ch=true;} if((c.edad===''||c.edad==null)&&num(d.edad)){c.edad=num(d.edad);ch=true;} if((c.talla===''||c.talla==null)&&num(d.talla)){c.talla=num(d.talla);ch=true;} if(ch) put('clientes',d.cid,c); }
+      const c0=S.clientes[d.cid]; if(c0){ const c=clone(c0); let ch=false; if(!c.sexo&&d.sexo){c.sexo=d.sexo;ch=true;} if((c.edad===''||c.edad==null)&&num(d.edad)){c.edad=num(d.edad);ch=true;} if(num(d.talla)&&(d.tipo==='antropo'||c.talla===''||c.talla==null)&&c.talla!==num(d.talla)){c.talla=num(d.talla);ch=true;} if(d.tipo==='antropo'&&num(d.peso)){ const ln=lastBy(ofC('mediciones',d.cid)); if(!ln||ln.fecha<=out.fecha){ c.peso=num(d.peso); ch=true; } } if(ch) put('clientes',d.cid,c); }
       put('tests',tid,out); render(true); toast('Test guardado'); break; }
     case 'deltest': case 'deltest_ok': if(a==='deltest'){ ui.confirm='deltest:'+id; render(true); break; } ui.modal=null; ui.d=null; del('tests',id); render(true); break;
     /* macro */
