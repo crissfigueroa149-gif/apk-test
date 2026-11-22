@@ -90,7 +90,7 @@ h1{font-size:24px;background:var(--grad);-webkit-background-clip:text;background
 .fh,.frow{display:grid;grid-template-columns:34px 1fr 1fr 1fr 44px;gap:6px;align-items:center}.fh{margin:10px 0 4px;font-size:10px;text-transform:uppercase;color:#64748B;font-weight:700}.frow{margin:6px 0}.frow input{width:100%;min-width:0;padding:11px 6px;text-align:center;font-size:16px;font-weight:700;border-radius:10px}.frow input.pre{color:#64748B}.fn{text-align:center;color:#94A3B8}.fant{font-size:12px;color:#64748B;text-align:center}.fck{height:42px;border-radius:12px;border:1.5px solid var(--line);background:var(--card-s);color:#64748B;font-size:18px;font-weight:800;cursor:pointer}.fck.on{background:#10B981;border-color:#10B981;color:#0b1020}.frow.dn input{opacity:.55}
 .fq{width:30px;height:30px;border-radius:50%;border:1.5px solid var(--line);background:var(--card-s);color:#94A3B8;font-weight:800;cursor:pointer}.fin{width:100%;margin-top:14px;padding:18px;border:0;border-radius:16px;font-size:18px;font-weight:800;color:#0b1020;background:linear-gradient(90deg,#EC4899,#F59E0B,#10B981);cursor:pointer}
 body.foco .nav{display:none}body.foco #rbar{bottom:calc(14px + env(safe-area-inset-bottom))}
-.dual{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}.dcell{background:var(--card-s);border:1px solid var(--line);border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:4px}.dcell b{font-size:24px}.dcell.off{opacity:.45}.dcell .chip{align-self:flex-start}
+.dual{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}.dcell{background:var(--card-s);border:1px solid var(--line);border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:4px}.dcell b{font-size:24px}.dual.tri{grid-template-columns:1fr}.dual.tri .dcell b{font-size:20px}.isrow{display:grid;grid-template-columns:1.3fr 1fr 1fr;gap:6px;align-items:center;margin:4px 0}.isrow span{font-size:14px}.dcell.off{opacity:.45}.dcell .chip{align-self:flex-start}
 #gfull{position:fixed;inset:0;z-index:60;background:#0D0E12;overflow:auto;padding:16px 16px 40px}#gfull .gx{position:sticky;top:0;display:flex;justify-content:space-between;align-items:center;background:#0D0E12;padding-bottom:10px}#gfull .gr{display:flex;align-items:center;gap:14px;padding:14px 12px;border:2px solid var(--line);border-radius:16px;margin:8px 0;background:var(--card);cursor:pointer}#gfull .gr.pick{border-color:#EC4899;background:rgba(236,72,153,.14)}#gfull .gr .gn{font-size:34px;font-weight:800;min-width:56px;text-align:center}#gfull .gr b{font-size:18px}#gfull table{font-size:18px}
 .m10{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}.m10 button{height:46px;border-radius:12px;border:2px solid var(--mc);background:transparent;color:var(--mc);font-weight:800;font-size:17px;cursor:pointer}.m10 button.on{background:var(--mc);color:#0b1020;transform:scale(1.06);box-shadow:0 4px 14px rgba(0,0,0,.3)}
 .clsr{padding:9px 0;border-top:1px solid var(--line)}.clsr.tod{background:rgba(255,255,255,.04);border-radius:8px;padding-left:6px;padding-right:6px}
@@ -627,9 +627,9 @@ function cicl(d){ const w=num(d.v.w),p=num(d.peso); if(!w||!p) return null;
 const TESTS = [
  {id:'fuerza',cap:'fuerza',special:true,n:'Batería de fuerza y resistencia (6 ejercicios)',d:'Puntaje y categoría según tu planilla'},
  {id:'harvard',cap:'aer',special:true,n:'Escalón de Harvard (5 min)',d:'VO₂máx estimado con el pulso de recuperación (tu planilla)'},
- {id:'antropo',cap:'comp',n:'Antropometría: IMC, cintura y cadera',d:'IMC, índice cintura-cadera, cintura-talla y % de grasa',needs:['sexo','peso','talla'],
+ {id:'antropo',cap:'comp',n:'Antropometría: IMC, cintura y cadera',d:'IMC, índice cintura-cadera, cintura-talla y % de grasa',needs:['sexo','peso','talla'],isak:true,
   campos:[Fd('cintura','Perímetro de cintura','cm'),Fd('cadera','Perímetro de cadera','cm'),Fd('grasa','% de grasa (InBody o pliegues)','%')],
-  proto:'Mide la cintura en el punto medio entre la última costilla y la cresta ilíaca, y la cadera en el mayor perímetro de los glúteos. Cinta sin comprimir, al final de una espiración normal. Mide la talla sin zapatos.',
+  proto:'Evaluación rápida: mide la cintura en el punto medio entre la última costilla y la cresta ilíaca, y la cadera en el mayor perímetro de los glúteos. Cinta sin comprimir, al final de una espiración normal. Mide la talla sin zapatos.',
   ref:'OMS (IMC, índice cintura-cadera y perímetro de cintura) · índice cintura-talla (NICE) · % de grasa (ACE)',
   calc:d=>{
     const p=num(d.peso),t=num(d.talla); if(!p||!t) return null;
@@ -643,7 +643,15 @@ const TESTS = [
       const x=M?(g<6?['Esencial','warn']:g<14?['Atleta','ok']:g<18?['Fitness','ok']:g<25?['Aceptable','']:['Obesidad','bad']):(g<14?['Esencial','warn']:g<21?['Atleta','ok']:g<25?['Fitness','ok']:g<32?['Aceptable','']:['Obesidad','bad']);
       L.push(ln('% de grasa',fmt(g)+'%',x[0],x[1]));
     }
-    return {valor:imc,unidad:'IMC (kg/m²)',cat:c.t,cc:c.c,lines:L,dual:[icc||{l:'Índice cintura-cadera',v:'–',t:'Falta cintura y cadera',c:''},ict||{l:'Índice cintura-talla',v:'–',t:'Falta cintura',c:''}],nota:'El IMC no distingue masa muscular de grasa: interprétalo junto al % de grasa y los perímetros.'};
+    let tri=null, ex=null;
+    { const V=d.v||{}, fv=k=>{ const x=num(V['pl_'+k]), y=num(V['pl_'+k+'2']); return x!=null&&y!=null?(x+y)/2:(x!=null?x:y); };
+      let pg=null, s6=null, s8=null;
+      if(d.modo==='isak'){ const k6=['tri','sub','sup','abd','mus','pan'], k8=k6.concat(['bic','cre']); const v6=k6.map(fv), miss=v6.filter(x=>x==null).length; if(!miss){ s6=v6.reduce((x,y)=>x+y,0); const v8=k8.map(fv); if(v8.every(x=>x!=null)) s8=v8.reduce((x,y)=>x+y,0); if(d.sexo) pg=M?0.1051*s6+2.585:0.1548*s6+3.580; }
+        const f1=x=>fmt(x,1);
+        tri=[{l:'Σ6 pliegues',v:s6!=null?f1(s6)+' mm':'–',t:s6!=null?(s8!=null?'Σ8: '+f1(s8)+' mm':'Σ8: faltan bíceps / cresta'):'Faltan '+miss+' pliegue'+(miss===1?'':'s'),c:''},{l:'% de grasa (Yuhasz)',v:pg!=null?f1(pg)+'%':'–',t:pg!=null?'':(s6!=null?'Elige el sexo':''),c:''},{l:'Masa grasa / magra',v:pg!=null?f1(p*pg/100)+' / '+f1(p-p*pg/100)+' kg':'–',t:'',c:''}]; }
+      if(pg==null&&g!=null) pg=g;
+      if(pg!=null){ const mg=p*pg/100; ex={pg:Math.round(pg*10)/10,mg:Math.round(mg*10)/10,ml:Math.round((p-mg)*10)/10}; if(s6!=null) ex.s6=Math.round(s6*10)/10; if(s8!=null) ex.s8=Math.round(s8*10)/10; if(d.modo==='isak'){ [['Σ6 pliegues',fmt(s6,1)+' mm'],['% de grasa (Yuhasz)',fmt(pg,1)+'%'],['Masa grasa',fmt(mg,1)+' kg'],['Masa magra',fmt(p-mg,1)+' kg']].forEach(z=>{ const o=ln(z[0],z[1]); o.h=1; L.push(o); }); } } }
+    return {valor:imc,unidad:'IMC (kg/m²)',cat:c.t,cc:c.c,lines:L,dual:[icc||{l:'Índice cintura-cadera',v:'–',t:'Falta cintura y cadera',c:''},ict||{l:'Índice cintura-talla',v:'–',t:'Falta cintura',c:''}],tri,ex,nota:'El IMC no distingue masa muscular de grasa: interprétalo junto al % de grasa y los perímetros.'};
   }},
  {id:'cooper',cap:'aer',n:'Test de Cooper (12 min)',d:'Distancia en 12 minutos → VO₂máx',needs:['sexo','edad'],
   campos:[Fd('dist','Distancia recorrida','m')],
@@ -819,8 +827,9 @@ function testPicker(cid,act){
 function resHTML(r,bd){
   if(!r) return '<div class="empty">Completa los datos para ver el resultado.</div>';
   return `<div class="row between"><div class="big">${r.valor!=null?fmt(r.valor,r.dec??1):'–'} <span class="sm mut">${esc(r.unidad||'')}</span>${bd||''}</div>${r.cat?`<span class="chip ${r.cc||''}" style="font-size:15px">${esc(r.cat)}</span>`:''}</div>`
+   +(r.tri?`<div class="dual tri">${r.tri.map(x=>`<div class="dcell ${x.v==='–'?'off':''}"><div class="xs mut">${x.l}</div><b>${esc(x.v)}</b>${x.t?`<span class="chip ${x.c||''}">${esc(x.t)}</span>`:''}</div>`).join('')}</div>`:'')
    +(r.dual?`<div class="dual">${r.dual.map(x=>`<div class="dcell ${x.v==='–'?'off':''}"><div class="xs mut">${x.l}</div><b>${esc(x.v)}</b>${x.t?`<span class="chip ${x.c||''}">${esc(x.t)}</span>`:''}</div>`).join('')}</div>`:'')
-   +((r.lines||[]).filter(x=>!(r.dual&&r.dual.some(q=>q.l===x.l))).length?`<table style="margin-top:8px">${r.lines.filter(x=>!(r.dual&&r.dual.some(q=>q.l===x.l))).map(x=>`<tr><td>${esc(x.l)}</td><td><b>${esc(x.v)}</b></td><td>${x.t?`<span class="chip ${x.c||''}">${esc(x.t)}</span>`:''}</td></tr>`).join('')}</table>`:'')
+   +((r.lines||[]).filter(x=>!x.h&&!(r.dual&&r.dual.some(q=>q.l===x.l))).length?`<table style="margin-top:8px">${r.lines.filter(x=>!x.h&&!(r.dual&&r.dual.some(q=>q.l===x.l))).map(x=>`<tr><td>${esc(x.l)}</td><td><b>${esc(x.v)}</b></td><td>${x.t?`<span class="chip ${x.c||''}">${esc(x.t)}</span>`:''}</td></tr>`).join('')}</table>`:'')
    +(r.nota?`<div class="xs mut" style="margin-top:8px">${esc(r.nota)}</div>`:'');
 }
 function calcG(d){ try{ const T=testById(d.tipo); return T&&T.calc?T.calc(d):null; }catch(e){ return null; } }
@@ -1382,7 +1391,7 @@ async function xPublish(cid,silent){
   const c=S.clientes[cid]; const a=appOf(c); if(!a.sid) return silent||toast('El alumno aún no se registra con el código');
   const tsx=ofC('tests',cid).sort((x,y)=>x.fecha.localeCompare(y.fecha)).map(t=>{ const T=testById(t.tipo), v=valorOf(t), r=t.res||{}; return {k:t.tipo,n:testName(t),cap:T?T.cap:'',f:t.fecha,v:(v==null||isNaN(v))?null:Math.round(v*100)/100,u:t.tipo==='fuerza'?'pts':t.tipo==='harvard'?'ml/kg/min':(r.unidad||''),cat:r.cat||'',s:(catScore(r.cat)!=null?catScore(r.cat):({ok:4,warn:3,bad:1.5})[r.cc]??null)}; });
   const meds=ofC('mediciones',cid).sort((x,y)=>x.fecha.localeCompare(y.fecha)).map(m=>({f:m.fecha,peso:m.peso,mm:m.masaMusc,mg:m.masaGrasa,cin:m.cintura!=null?m.cintura:undefined}));
-  ofC('tests',cid).filter(t=>t.tipo==='antropo').sort((x,y)=>x.fecha.localeCompare(y.fecha)).forEach(t=>{ const o=meds.find(m=>m.f===t.fecha)||(meds.push({f:t.fecha}),meds[meds.length-1]); if(o.peso==null&&t.peso!=null) o.peso=t.peso; if(t.res&&t.res.valor!=null) o.imc=Math.round(t.res.valor*10)/10; const ci=num((t.v||{}).cintura); if(ci!=null) o.cin=ci; }); meds.sort((x,y)=>x.f.localeCompare(y.f));
+  ofC('tests',cid).filter(t=>t.tipo==='antropo').sort((x,y)=>x.fecha.localeCompare(y.fecha)).forEach(t=>{ const o=meds.find(m=>m.f===t.fecha)||(meds.push({f:t.fecha}),meds[meds.length-1]); if(o.peso==null&&t.peso!=null) o.peso=t.peso; if(t.res&&t.res.valor!=null) o.imc=Math.round(t.res.valor*10)/10; if(t.res&&t.res.ex){ const X=t.res.ex; if(X.mg!=null&&o.mg==null) o.mg=X.mg; if(X.ml!=null) o.ml=X.ml; if(X.pg!=null) o.pg=X.pg; } const ci=num((t.v||{}).cintura); if(ci!=null) o.cin=ci; }); meds.sort((x,y)=>x.f.localeCompare(y.f));
   const wk={}; ofC('sesiones',cid).forEach(s=>{ if(s.fecha) { const k=wkKey(parseD(s.fecha)); wk[k]=(wk[k]||0)+1; } });
   const ccS={ok:4,warn:3,bad:1.5}; const sc=r=>{ const s=catScore(r.cat); return s!=null?s:(ccS[r.cc]!=null?ccS[r.cc]:null); }; const unit=t=>t.tipo==='fuerza'?'pts':t.tipo==='harvard'?'ml/kg/min':((t.res||{}).unidad||'');
   const byT={}; ofC('tests',cid).sort((x,y)=>x.fecha.localeCompare(y.fecha)).forEach(t=>{ (byT[t.tipo]=byT[t.tipo]||[]).push(t); });
@@ -1802,7 +1811,7 @@ function famDonut(md){ const f={'Tren superior':0,'Tren inferior':0,'Core':0}; m
 function bodyCard(P){ const M=((P.prog||{}).meds)||[]; if(!M.length) return ''; const l=M[M.length-1];
   const row=(ic,n,k,u,gain,c)=>{ const s=M.filter(m=>m[k]!=null&&m[k]!=='').map(m=>Number(m[k])); if(!s.length) return ''; const d=s.length>1?s[s.length-1]-s[0]:null, good=d==null?null:(gain?d>=0:d<=0);
     return `<div class="brow"><div class="grow"><div class="xs mut">${ic} ${n}</div><div style="font-size:24px;font-weight:800">${s[s.length-1]}<span class="sm mut"> ${u}</span></div>${d!=null?`<div class="xs" style="color:${good?'#10B981':'#e0a82e'}">${d>0?'▲ +':d<0?'▼ ':''}${Math.round(d*10)/10} desde el inicio</div>`:''}</div>${chSpark(s,c)}</div>`; };
-  return `<div class="card"><h3>Tu cuerpo</h3><div class="xs mut">Última medición: ${fdate(l.f)}</div>${row('⚖️','Peso','peso','kg',false,'#3fa9ff')}${row('💪','Masa muscular','mm','kg',true,'#2ee6c5')}${row('🔥','Masa grasa','mg','kg',false,'#ff9f43')}${row('📏','IMC','imc','',false,'#8f8cff')}${row('📐','Cintura','cin','cm',false,'#F59E0B')}</div>`; }
+  return `<div class="card"><h3>Tu cuerpo</h3><div class="xs mut">Última medición: ${fdate(l.f)}</div>${row('⚖️','Peso','peso','kg',false,'#3fa9ff')}${row('💪','Masa muscular','mm','kg',true,'#2ee6c5')}${row('🔥','Masa grasa','mg','kg',false,'#ff9f43')}${row('🥩','Masa magra','ml','kg',true,'#10B981')}${row('📉','% de grasa','pg','%',false,'#EF4444')}${row('📏','IMC','imc','',false,'#8f8cff')}${row('📐','Cintura','cin','cm',false,'#F59E0B')}</div>`; }
 function heatmap(P,AL){ const dates=new Set(((P.prog||{}).sd)||[]); hDone(mergeH(P.hechos,AL.hechos)).forEach(([k,v])=>dates.add(v.d)); const t=new Date(), mon=new Date(t.getFullYear(),t.getMonth(),t.getDate()-((t.getDay()+6)%7)-49), L=['L','M','X','J','V','S','D']; let cols='',tot=0; const dow=[0,0,0,0,0,0,0];
   for(let w=0;w<8;w++){ let c=''; for(let d=0;d<7;d++){ const x=new Date(mon.getFullYear(),mon.getMonth(),mon.getDate()+w*7+d), ds=ymd(x), on=dates.has(ds), fut=x>t; if(on){ tot++; dow[d]++; } c+=`<i class="hm ${on?'on':''} ${fut?'fu':''}" title="${ds}"></i>`; } cols+=`<div class="hmc">${c}</div>`; }
   const mx=Math.max(...dow), best=mx?['lunes','martes','miércoles','jueves','viernes','sábado','domingo'][dow.indexOf(mx)]:null;
@@ -2504,9 +2513,17 @@ function mGtest(){
   const CL={edad:['Edad','1'],peso:['Peso corporal (kg)','any'],talla:['Talla (cm)','any']};
   const ctx=(T.needs||[]).map(k=>k==='sexo'?`<div><label>Sexo</label><select data-b="sexo"><option value="">–</option><option value="F" ${d.sexo==='F'?'selected':''}>Mujer</option><option value="M" ${d.sexo==='M'?'selected':''}>Hombre</option></select></div>`:`<div><label>${CL[k][0]}</label><input type="number" step="${CL[k][1]}" inputmode="decimal" data-b="${k}" data-n value="${esc(d[k])}"></div>`).join('');
   const fields=(T.campos||[]).map(f=>f.t==='sel'?`<div><label>${f.l}</label><select data-b="v.${f.k}">${f.opts.map(o=>`<option ${o===d.v[f.k]?'selected':''}>${o}</option>`).join('')}</select></div>`:f.t==='txt'?`<div class="full"><label>${f.l}</label><input data-b="v.${f.k}" value="${esc(d.v[f.k])}"></div>`:`<div><label>${f.l}${f.u?' ('+f.u+')':''}</label><input type="number" step="any" inputmode="decimal" data-b="v.${f.k}" data-n value="${esc(d.v[f.k])}"></div>`).join('');
-  return `<div class="sheet"><div class="hd"><div><h2>${esc(T.n)}</h2><div class="sub sm mut">${c?esc(c.nombre):''}</div></div><button class="btn" data-a="close">Cerrar</button></div>
-  <details><summary>Cómo se hace</summary><div class="sm">${esc(T.proto)}</div><div class="xs mut" style="margin-top:6px">Fuente de la fórmula o norma: ${esc(T.ref)}</div></details>
-  <div class="f" style="margin-top:8px"><div><label>Fecha</label><input type="date" data-b="fecha" value="${esc(d.fecha)}"></div>${ctx}${fields}</div>
+  const isk=T.isak&&d.modo==='isak';
+  const NI=(k,l,ph)=>`<div><label>${l}</label><input type="number" step="any" inputmode="decimal" data-b="v.${k}" data-n value="${esc(d.v[k])}" placeholder="${ph||''}"></div>`;
+  const FOLDS=[['tri','Tríceps'],['sub','Subescapular'],['bic','Bíceps'],['cre','Cresta ilíaca'],['sup','Supraespinal'],['abd','Abdominal'],['mus','Muslo frontal'],['pan','Pantorrilla medial']];
+  const isakForm=`<div class="full"><h3>B. Pliegues cutáneos (mm)</h3><div class="xs mut">Toma 1 y, si quieres, Toma 2: se usa el promedio.</div>${FOLDS.map(([k,l])=>`<div class="isrow"><span>${l}</span><input type="number" step="any" inputmode="decimal" data-b="v.pl_${k}" data-n value="${esc(d.v['pl_'+k])}" placeholder="Toma 1"><input type="number" step="any" inputmode="decimal" data-b="v.pl_${k}2" data-n value="${esc(d.v['pl_'+k+'2'])}" placeholder="Toma 2"></div>`).join('')}</div>
+   <div class="full"><h3>C. Perímetros (cm)</h3></div>${NI('p_brr','Brazo relajado')}${NI('p_brf','Brazo flexionado y en tensión')}${NI('cintura','Cintura mínima')}${NI('cadera','Glúteo / cadera máxima')}${NI('p_mus','Muslo medio')}${NI('p_pan','Pantorrilla máxima')}
+   <div class="full"><h3>D. Diámetros óseos (cm, opcional)</h3></div>${NI('d_hum','Húmero (biepicondilar)')}${NI('d_fem','Fémur (bicondilar)')}`;
+  const tabsHTML=T.isak?`<div class="tabs" style="margin:10px 0 0"><button class="${isk?'':'on'}" data-a="gmodo" data-v="rapida">Evaluación rápida</button><button class="${isk?'on':''}" data-a="gmodo" data-v="isak">Perfil ISAK completo</button></div>`:'';
+  const isakTip=isk?'<div class="sm" style="margin-bottom:6px">Todos los pliegues y perímetros ISAK se miden en el <b>lado derecho</b> del cuerpo (salvo lesión). Pliegues: marca el sitio, pellizca con pulgar e índice, apoya el plicómetro 1 cm bajo los dedos y lee a los 2 s. Si dos tomas difieren más de 5 %, haz una tercera y usa la mediana. Σ6 = tríceps + subescapular + supraespinal + abdominal + muslo frontal + pantorrilla medial. % de grasa: ecuación de Yuhasz modificada por Carter.</div>':'';
+  return `<div class="sheet"><div class="hd"><div><h2>${esc(T.n)}</h2><div class="sub sm mut">${c?esc(c.nombre):''}</div></div><button class="btn" data-a="close">Cerrar</button></div>${tabsHTML}
+  <details><summary>Cómo se hace</summary>${isakTip}<div class="sm">${esc(T.proto)}</div><div class="xs mut" style="margin-top:6px">Fuente de la fórmula o norma: ${esc(T.ref)}</div></details>
+  <div class="f" style="margin-top:8px"><div><label>Fecha</label><input type="date" data-b="fecha" value="${esc(d.fecha)}"></div>${ctx}${isk?NI('tsent','Talla sentado (opcional)')+isakForm:fields}</div>
   <div class="card" id="gres"></div>
   <div class="foot">${d._new?'<span></span>':confirmBtn('deltest:'+d._id,'Eliminar','deltest',d._id)}<button class="btn pri" data-a="savegtest">Guardar</button></div></div>`;
 }
@@ -2569,7 +2586,7 @@ function gDraft(cid,tipo){
   const tt=ofC('tests',cid).filter(x=>x.peso!=null||x.talla!=null).sort((x,y)=>y.fecha.localeCompare(x.fecha));
   const tT=tt.find(x=>x.talla!=null), tP=tt.find(x=>x.peso!=null);
   const cand=[m&&m.peso!=null?{f:m.fecha,p:m.peso}:null,tP?{f:tP.fecha,p:tP.peso}:null].filter(Boolean).sort((x,y)=>y.f.localeCompare(x.f))[0];
-  return {_new:true,cid,tipo,fecha:ymd(new Date()),sexo:c.sexo||'',edad:c.edad??'',peso:cand?cand.p:(c.peso??''),talla:(c.talla!=null&&c.talla!=='')?c.talla:(tT?tT.talla:''),v};
+  return {_new:true,cid,tipo,fecha:ymd(new Date()),sexo:c.sexo||'',edad:c.edad??'',peso:cand?cand.p:(c.peso??''),talla:(c.talla!=null&&c.talla!=='')?c.talla:(tT?tT.talla:''),modo:'rapida',v};
 }
 document.addEventListener('input',e=>{
   const el=e.target; if(el.id==='tplsel') return;
@@ -2667,7 +2684,7 @@ document.addEventListener('click',e=>{
     /* tests */
     case 'newtest': if(GENERIC(v)) openModal('gtest',gDraft(id,v)); else openModal(v,testDraft(id,v)); break;
     case 'newtest2': { if(!ui.testFilter){ toast('Elige primero un cliente (arriba)'); window.scrollTo(0,0); break; } if(GENERIC(v)) openModal('gtest',gDraft(ui.testFilter,v)); else openModal(v,testDraft(ui.testFilter,v)); break; }
-    case 'edittest': { const t=S.tests[id]; const d={...clone(t),_id:id}; if(GENERIC(t.tipo)){ d.v=clone(t.v||{}); openModal('gtest',d); break; } if(t.tipo==='fuerza') d.reps=clone(t.reps||{}); openModal(t.tipo,d); break; }
+    case 'edittest': { const t=S.tests[id]; const d={...clone(t),_id:id}; if(GENERIC(t.tipo)){ d.v=clone(t.v||{}); d.modo=t.modo||(Object.keys(d.v).some(k=>/^pl_/.test(k))?'isak':'rapida'); openModal('gtest',d); break; } if(t.tipo==='fuerza') d.reps=clone(t.reps||{}); openModal(t.tipo,d); break; }
     case 'savetest': {
       const d=clone(ui.d); if(!d.sexo){ toast('Elige el sexo para calcular'); break; }
       let out={cid:d.cid,tipo:d.tipo,fecha:d.fecha||ymd(new Date()),sexo:d.sexo,peso:num(d.peso)};
@@ -2676,7 +2693,7 @@ document.addEventListener('click',e=>{
       const tid=d._id||uid(); ui.modal=null; ui.d=null; put('tests',tid,out); render(true); toast('Test guardado'); break; }
     case 'savegtest': {
       const d=clone(ui.d); const r=calcG(d); if(!r||r.valor==null){ toast('Completa los datos del test'); break; }
-      const out={cid:d.cid,tipo:d.tipo,fecha:d.fecha||ymd(new Date()),sexo:d.sexo||'',edad:num(d.edad),peso:num(d.peso),talla:num(d.talla),v:d.v,res:{valor:r.valor,unidad:r.unidad||'',dec:r.dec??1,cat:r.cat||null,cc:r.cc||'',lines:r.lines||[],dual:r.dual||null,nota:r.nota||''}};
+      const out={cid:d.cid,tipo:d.tipo,fecha:d.fecha||ymd(new Date()),sexo:d.sexo||'',edad:num(d.edad),peso:num(d.peso),talla:num(d.talla),v:d.v,res:{valor:r.valor,unidad:r.unidad||'',dec:r.dec??1,cat:r.cat||null,cc:r.cc||'',lines:r.lines||[],dual:r.dual||null,tri:r.tri||null,ex:r.ex||null,nota:r.nota||''},modo:d.modo||'rapida'};
       const tid=d._id||uid(); ui.modal=null; ui.d=null;
       const c0=S.clientes[d.cid]; if(c0){ const c=clone(c0); let ch=false; if(!c.sexo&&d.sexo){c.sexo=d.sexo;ch=true;} if((c.edad===''||c.edad==null)&&num(d.edad)){c.edad=num(d.edad);ch=true;} if(num(d.talla)&&(d.tipo==='antropo'||c.talla===''||c.talla==null)&&c.talla!==num(d.talla)){c.talla=num(d.talla);ch=true;} if(d.tipo==='antropo'&&num(d.peso)){ const ln=lastBy(ofC('mediciones',d.cid)); if(!ln||ln.fecha<=out.fecha){ c.peso=num(d.peso); ch=true; } } if(ch) put('clientes',d.cid,c); }
       put('tests',tid,out); render(true); toast('Test guardado'); break; }
@@ -2685,6 +2702,7 @@ document.addEventListener('click',e=>{
     case 'mtplsave': { const nm=((document.getElementById('mtname')||{}).value||'').trim(); if(!nm) return toast('Ponle un nombre a la plantilla'); const mc=S.macros[id]; if(!mc) return; put('plantillas',uid(),{tipo:'macro',nombre:nm,meta:mc.meta||'',semanas:clone(mc.semanas)}); toast('Plantilla guardada'); break; }
     case 'mtplapply': { const p=S.plantillas[(document.getElementById('mtsel')||{}).value]; if(!p) return; const cur=S.macros[id]; put('macros',id,{cid:id,meta:p.meta||'',inicio:(cur&&cur.inicio)||ymd(new Date()),semanas:clone(p.semanas)}); toast('Plantilla aplicada'); break; }
     case 'maccopy': { const src=S.macros[(document.getElementById('mcsel')||{}).value]; if(!src) return; const cur=S.macros[id]; put('macros',id,{cid:id,meta:src.meta||'',inicio:(cur&&cur.inicio)||ymd(new Date()),semanas:clone(src.semanas)}); toast('Macrociclo copiado'); break; }
+    case 'gmodo': ui.d.modo=v; render(true); break;
     case 'sethora': ui.d.hora=v; render(true); break;
     case 'gfull': guiaFull(v); break;
     case 'gfullx': { const o=document.getElementById('gfull'); if(o) o.remove(); break; }
